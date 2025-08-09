@@ -1,6 +1,7 @@
 package hyperliquid
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -39,7 +40,12 @@ type OrderStatusFilled struct {
 type OrderStatus struct {
 	Resting *OrderStatusResting `json:"resting,omitempty"`
 	Filled  *OrderStatusFilled  `json:"filled,omitempty"`
-	Error   *error              `json:"error,omitempty"`
+	Error   *string             `json:"error,omitempty"`
+}
+
+func (s *OrderStatus) String() string {
+	data, _ := json.Marshal(s)
+	return string(data)
 }
 
 type OrderResponse struct {
