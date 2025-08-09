@@ -70,17 +70,19 @@ func (e *Exchange) postAction(
 		"signature": signature,
 	}
 
-	// Handle vault address based on action type
-	if actionMap, ok := action.(map[string]any); ok {
-		if actionMap["type"] != "usdClassTransfer" {
-			payload["vaultAddress"] = e.vault
+	if e.vault != "" {
+		// Handle vault address based on action type
+		if actionMap, ok := action.(map[string]any); ok {
+			if actionMap["type"] != "usdClassTransfer" {
+				payload["vaultAddress"] = e.vault
+			} else {
+				payload["vaultAddress"] = nil
+			}
 		} else {
-			payload["vaultAddress"] = nil
+			// For struct types, we need to use reflection or type assertion
+			// For now, assume it's not usdClassTransfer
+			payload["vaultAddress"] = e.vault
 		}
-	} else {
-		// For struct types, we need to use reflection or type assertion
-		// For now, assume it's not usdClassTransfer
-		payload["vaultAddress"] = e.vault
 	}
 
 	// Add expiration time if set

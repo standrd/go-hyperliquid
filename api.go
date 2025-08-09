@@ -46,14 +46,18 @@ func (r *APIResponse[T]) UnmarshalJSON(data []byte) error {
 
 	// When status is "ok", "response" contains "type" and "data"
 	r.Type = string(parsed.GetStringBytes("response", "type"))
-	responseData := parsed.GetStringBytes("response", "data")
+
+	// GetStringBytes() only works on string, we should do a Get instead
+	responseData := parsed.Get("response", "data")
 
 	if responseData == nil {
 		return fmt.Errorf("missing response.data field in successful response")
 	}
 
+	b := responseData.MarshalTo(nil)
+
 	// Use fastjson's built-in unmarshaling if possible, fallback to json.Unmarshal
-	if err := json.Unmarshal(responseData, &r.Data); err != nil {
+	if err := json.Unmarshal(b, &r.Data); err != nil {
 		return fmt.Errorf("failed to unmarshal response data: %w", err)
 	}
 
