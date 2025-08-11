@@ -27,7 +27,7 @@ type createOrderRequest struct {
 
 type OrderStatusResting struct {
 	Oid      int64  `json:"oid"`
-	ClientID string `json:"cid"`
+	ClientID string `json:"cloid"`
 	Status   string `json:"status"`
 }
 
