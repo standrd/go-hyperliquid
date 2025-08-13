@@ -137,6 +137,13 @@ func (e *Exchange) BulkOrders(
 		return nil, err
 	}
 	err = e.executeAction(action, &result)
+	// check if any of the statuses has an error set
+	for _, s := range result.Data.Statuses {
+		if s.Error != nil {
+			return result, fmt.Errorf("%s", *s.Error)
+		}
+	}
+
 	return
 }
 
