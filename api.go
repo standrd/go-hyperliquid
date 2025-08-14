@@ -137,3 +137,28 @@ func (ma *MixedArray) UnmarshalJSON(data []byte) error {
 	*ma = rawArr
 	return nil
 }
+
+func (ma MixedArray) FirstError() error {
+	for _, mv := range ma {
+		if s, ok := mv.String(); ok {
+			if s == "success" {
+				continue
+			}
+			// any other string? treat as error text
+			return fmt.Errorf(s)
+		}
+		if obj, ok := mv.Object(); ok {
+			if v, ok := obj["error"]; ok {
+				if msg, ok := v.(string); ok && msg != "" {
+					return fmt.Errorf(msg)
+				}
+				// stringify unknown error shapes
+				b, _ := json.Marshal(v)
+				return fmt.Errorf(string(b))
+			}
+		}
+		// Unknown shape -> generic failure
+		return fmt.Errorf("cancel failed")
+	}
+	return nil
+}
