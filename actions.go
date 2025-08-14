@@ -16,9 +16,12 @@ type CancelAction struct {
 }
 
 // CancelByCloidWire represents cancel by cloid item wire format
+// NB: the CancelByCloidWire MUST have `asset` and not `o` like
+// CancelOrderWire has
+// See: https://github.com/hyperliquid-dex/hyperliquid-python-sdk/blob/f19056ca1b65cc15a019d92dffa9ada887b3d808/hyperliquid/exchange.py#L305-L310
 type CancelByCloidWire struct {
-	Asset   int    `json:"a"     msgpack:"a"`
-	OrderID string `json:"cloid" msgpack:"cloid"`
+	Asset    int    `json:"asset"     msgpack:"asset"`
+	ClientID string `json:"cloid" msgpack:"cloid"`
 }
 
 // CancelByCloidAction represents the cancel by cloid action

@@ -255,12 +255,12 @@ func TestOrders(t *testing.T) {
 						Tif: TifGtc,
 					},
 				},
-				ClientOrderID: strAsPtr("0x06c60000000000000000000000003f5a"),
+				ClientOrderID: stringPtr("0x06c60000000000000000000000003f5a"),
 			},
 			result: OrderStatus{
 				Resting: &OrderStatusResting{
 					Oid:      37543130760,
-					ClientID: "0x06c60000000000000000000000003f5a",
+					ClientID: stringPtr("0x06c60000000000000000000000003f5a"),
 				},
 			},
 			record: false,
@@ -290,8 +290,4 @@ func TestOrders(t *testing.T) {
 			}
 		})
 	}
-}
-
-func strAsPtr(s string) *string {
-	return &s
 }
