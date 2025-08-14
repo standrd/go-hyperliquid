@@ -83,8 +83,8 @@ func (e *Exchange) BulkCancelByCloids(
 ) (res *APIResponse[CancelOrderResponse], err error) {
 	cancels := slices.Map(requests, func(req CancelOrderRequestByCloid) CancelByCloidWire {
 		return CancelByCloidWire{
-			Asset:   e.info.NameToAsset(req.Coin),
-			OrderID: req.Cloid,
+			Asset:    e.info.NameToAsset(req.Coin),
+			ClientID: req.Cloid,
 		}
 	})
 
@@ -96,5 +96,17 @@ func (e *Exchange) BulkCancelByCloids(
 	if err = e.executeAction(action, &res); err != nil {
 		return
 	}
+
+	if res == nil || !res.Ok || res.Status == "err" {
+		if res != nil && res.Err != "" {
+			return res, fmt.Errorf(res.Err)
+		}
+		return res, fmt.Errorf("cancel failed")
+	}
+
+	if err := res.Data.Statuses.FirstError(); err != nil {
+		return res, err
+	}
+
 	return
 }

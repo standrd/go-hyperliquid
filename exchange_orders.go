@@ -26,9 +26,9 @@ type createOrderRequest struct {
 }
 
 type OrderStatusResting struct {
-	Oid      int64  `json:"oid"`
-	ClientID string `json:"cloid"`
-	Status   string `json:"status"`
+	Oid      int64   `json:"oid"`
+	ClientID *string `json:"cloid"`
+	Status   string  `json:"status"`
 }
 
 type OrderStatusFilled struct {
@@ -137,10 +137,16 @@ func (e *Exchange) BulkOrders(
 		return nil, err
 	}
 	err = e.executeAction(action, &result)
-	// check if any of the statuses has an error set
-	for _, s := range result.Data.Statuses {
-		if s.Error != nil {
-			return result, fmt.Errorf("%s", *s.Error)
+	if err != nil {
+		return nil, err
+	}
+
+	if result != nil {
+		// check if any of the statuses has an error set
+		for _, s := range result.Data.Statuses {
+			if s.Error != nil {
+				return result, fmt.Errorf("%s", *s.Error)
+			}
 		}
 	}
 

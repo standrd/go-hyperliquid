@@ -25,7 +25,7 @@ func TestAPIResponse_UnmarshalJSON(t *testing.T) {
 						{
 							Resting: &OrderStatusResting{
 								Oid:      12345678901,
-								ClientID: "0x00000000000000000000000000000000",
+								ClientID: stringPtr("0x00000000000000000000000000000000"),
 							},
 						},
 					},
