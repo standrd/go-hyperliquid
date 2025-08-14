@@ -1,7 +1,7 @@
 package hyperliquid
 
 import (
-	"strconv"
+	"fmt"
 
 	"github.com/sonirico/vago/slices"
 )
@@ -35,7 +35,7 @@ func (e *Exchange) BulkCancel(
 	cancels := slices.Map(requests, func(req CancelOrderRequest) CancelOrderWire {
 		return CancelOrderWire{
 			Asset:   e.info.NameToAsset(req.Coin),
-			OrderID: strconv.FormatInt(req.OrderID, 10),
+			OrderID: req.OrderID,
 		}
 	})
 
@@ -47,6 +47,18 @@ func (e *Exchange) BulkCancel(
 	if err = e.executeAction(action, &res); err != nil {
 		return
 	}
+
+	if res == nil || !res.Ok || res.Status == "err" {
+		if res != nil && res.Err != "" {
+			return res, fmt.Errorf(res.Err)
+		}
+		return res, fmt.Errorf("cancel failed")
+	}
+
+	if err := res.Data.Statuses.FirstError(); err != nil {
+		return res, err
+	}
+
 	return
 }
 

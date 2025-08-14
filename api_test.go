@@ -654,3 +654,16 @@ func TestMixedValue_IntegrationWithComplexData(t *testing.T) {
 
 	assert.Equal(t, mv.Type(), mv2.Type())
 }
+
+func TestMixedArray_FirstError(t *testing.T) {
+	input := `{"status":"ok","response":{"type":"cancel","data":{"statuses":[{"error":"Order was never placed, already canceled, or filled. asset=173"}]}}}`
+	res := &APIResponse[CancelOrderResponse]{}
+
+	err := json.Unmarshal([]byte(input), res)
+	require.NoError(t, err)
+
+	want := "Order was never placed, already canceled, or filled. asset=173"
+	got := res.Data.Statuses.FirstError()
+
+	require.ErrorContains(t, got, want)
+}
