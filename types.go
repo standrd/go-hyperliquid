@@ -343,6 +343,12 @@ type ApprovalResponse struct {
 	Error  string `json:"error,omitempty"`
 }
 
+type CreateVaultResponse struct {
+	Status string `json:"status"`
+	Data   string `json:"data,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
 type CreateSubAccountResponse struct {
 	Status string      `json:"status"`
 	Data   *SubAccount `json:"data,omitempty"`
