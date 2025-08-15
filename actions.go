@@ -20,7 +20,7 @@ type CancelAction struct {
 // CancelOrderWire has
 // See: https://github.com/hyperliquid-dex/hyperliquid-python-sdk/blob/f19056ca1b65cc15a019d92dffa9ada887b3d808/hyperliquid/exchange.py#L305-L310
 type CancelByCloidWire struct {
-	Asset    int    `json:"asset"     msgpack:"asset"`
+	Asset    int    `json:"asset" msgpack:"asset"`
 	ClientID string `json:"cloid" msgpack:"cloid"`
 }
 
@@ -68,6 +68,29 @@ type VaultUsdTransferAction struct {
 	Type         string `json:"type"         msgpack:"type"`
 	VaultAddress string `json:"vaultAddress" msgpack:"vaultAddress"`
 	IsDeposit    bool   `json:"isDeposit"    msgpack:"isDeposit"`
+	Usd          int    `json:"usd"          msgpack:"usd"`
+}
+
+// CreateVaultAction represents create vault action
+type CreateVaultAction struct {
+	Type        string `json:"type"        msgpack:"type"`
+	Name        string `json:"name"        msgpack:"name"`
+	Description string `json:"description" msgpack:"description"`
+	InitialUsd  int    `json:"initialUsd"  msgpack:"initialUsd"`
+}
+
+// VaultModifyAction represents vault modify action
+type VaultModifyAction struct {
+	Type                  string `json:"type"                  msgpack:"type"`
+	VaultAddress          string `json:"vaultAddress"          msgpack:"vaultAddress"`
+	AllowDeposits         bool   `json:"allowDeposits"         msgpack:"allowDeposits"`
+	AlwaysCloseOnWithdraw bool   `json:"alwaysCloseOnWithdraw" msgpack:"alwaysCloseOnWithdraw"`
+}
+
+// VaultDistributeAction represents vault distribute action
+type VaultDistributeAction struct {
+	Type         string `json:"type"         msgpack:"type"`
+	VaultAddress string `json:"vaultAddress" msgpack:"vaultAddress"`
 	Usd          int    `json:"usd"          msgpack:"usd"`
 }
 

@@ -317,6 +317,116 @@ func (e *Exchange) VaultUsdTransfer(
 	return &result, nil
 }
 
+// CreateVault creates a new vault
+func (e *Exchange) CreateVault(
+	name string,
+	description string,
+	initialUsd int,
+) (*CreateVaultResponse, error) {
+	timestamp := time.Now().UnixMilli()
+
+	action := CreateVaultAction{
+		Type:        "createVault",
+		Name:        name,
+		Description: description,
+		InitialUsd:  initialUsd,
+	}
+
+	sig, err := SignL1Action(
+		e.privateKey,
+		action,
+		"", // No vault address
+		timestamp,
+		e.expiresAfter,
+		e.client.baseURL == MainnetAPIURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := e.postAction(action, sig, timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	var result CreateVaultResponse
+	if err := json.Unmarshal(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (e *Exchange) VaultModify(
+	vaultAddress string,
+	allowDeposits bool,
+	alwaysCloseOnWithdraw bool,
+) (*TransferResponse, error) {
+	timestamp := time.Now().UnixMilli()
+
+	action := VaultModifyAction{
+		Type:                  "vaultModify",
+		VaultAddress:          vaultAddress,
+		AllowDeposits:         allowDeposits,
+		AlwaysCloseOnWithdraw: alwaysCloseOnWithdraw,
+	}
+
+	sig, err := SignL1Action(
+		e.privateKey,
+		action,
+		"", // No vault address
+		timestamp,
+		e.expiresAfter,
+		e.client.baseURL == MainnetAPIURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := e.postAction(action, sig, timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	var result TransferResponse
+	if err := json.Unmarshal(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (e *Exchange) VaultDistribute(vaultAddress string, usd int) (*TransferResponse, error) {
+	timestamp := time.Now().UnixMilli()
+
+	action := VaultDistributeAction{
+		Type:         "vaultDistribute",
+		VaultAddress: vaultAddress,
+		Usd:          usd,
+	}
+
+	sig, err := SignL1Action(
+		e.privateKey,
+		action,
+		"", // No vault address
+		timestamp,
+		e.expiresAfter,
+		e.client.baseURL == MainnetAPIURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := e.postAction(action, sig, timestamp)
+	if err != nil {
+		return nil, err
+	}
+
+	var result TransferResponse
+	if err := json.Unmarshal(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // UsdTransfer transfers USD to another address
 func (e *Exchange) UsdTransfer(amount float64, destination string) (*TransferResponse, error) {
 	timestamp := time.Now().UnixMilli()
