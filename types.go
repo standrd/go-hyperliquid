@@ -1,5 +1,7 @@
 package hyperliquid
 
+//go:generate easyjson -all
+
 type Side string
 
 const (

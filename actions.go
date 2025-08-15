@@ -1,5 +1,7 @@
 package hyperliquid
 
+//go:generate easyjson -all
+
 // Action structs with deterministic field ordering for consistent MessagePack serialization
 // The order of fields in these structs is critical for signature generation
 

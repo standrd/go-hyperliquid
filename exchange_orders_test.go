@@ -108,7 +108,8 @@ func defaultRecorderOpts(record bool) []recorder.Option {
 			i.Request.Headers.Del("Apikey")
 			i.Request.Headers.Del("Signature")
 
-			if strings.Contains(i.Request.Headers.Get("Content-Type"), "application/json") && i.Request.Body != "" {
+			if strings.Contains(i.Request.Headers.Get("Content-Type"), "application/json") &&
+				i.Request.Body != "" {
 				i.Request.Body = scrubHLJSON(i.Request.Body)
 			}
 

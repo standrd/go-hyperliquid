@@ -15,16 +15,6 @@ type CreateOrderRequest struct {
 	ClientOrderID *string
 }
 
-type createOrderRequest struct {
-	Asset         int       `json:"a"`
-	IsBuy         bool      `json:"b"`
-	Price         string    `json:"p"`
-	Size          string    `json:"s"`
-	ReduceOnly    bool      `json:"r"`
-	OrderType     OrderType `json:"t"`
-	ClientOrderID *string   `json:"c,omitempty"`
-}
-
 type OrderStatusResting struct {
 	Oid      int64   `json:"oid"`
 	ClientID *string `json:"cloid"`
