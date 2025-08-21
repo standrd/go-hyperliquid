@@ -230,6 +230,8 @@ type UserFees struct {
 	FeeSchedule            FeeSchedule  `json:"feeSchedule"`
 	UserAddRate            string       `json:"userAddRate"`
 	UserCrossRate          string       `json:"userCrossRate"`
+	UserSpotCrossRate      string       `json:"userSpotCrossRate"`
+	UserSpotAddRate        string       `json:"userSpotAddRate"`
 }
 
 type UserVolume struct {
