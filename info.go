@@ -87,6 +87,58 @@ func NewInfo(baseURL string, skipWS bool, meta *Meta, spotMeta *SpotMeta) *Info 
 	return info
 }
 
+func parseMetaResponse(resp []byte) (*Meta, error) {
+	var meta map[string]json.RawMessage
+	if err := json.Unmarshal(resp, &meta); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal meta response: %w", err)
+	}
+
+	var universe []AssetInfo
+	if err := json.Unmarshal(meta["universe"], &universe); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal universe: %w", err)
+	}
+
+	var marginTables [][]any
+	if err := json.Unmarshal(meta["marginTables"], &marginTables); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal margin tables: %w", err)
+	}
+
+	marginTablesResult := make([]MarginTable, len(marginTables))
+	for i, marginTable := range marginTables {
+		id := marginTable[0].(float64)
+		tableBytes, err := json.Marshal(marginTable[1])
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal margin table data: %w", err)
+		}
+
+		var marginTableData map[string]any
+		if err := json.Unmarshal(tableBytes, &marginTableData); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal margin table data: %w", err)
+		}
+
+		marginTiersBytes, err := json.Marshal(marginTableData["marginTiers"])
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal margin tiers: %w", err)
+		}
+
+		var marginTiers []MarginTier
+		if err := json.Unmarshal(marginTiersBytes, &marginTiers); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal margin tiers: %w", err)
+		}
+
+		marginTablesResult[i] = MarginTable{
+			ID:          int(id),
+			Description: marginTableData["description"].(string),
+			MarginTiers: marginTiers,
+		}
+	}
+
+	return &Meta{
+		Universe:     universe,
+		MarginTables: marginTablesResult,
+	}, nil
+}
+
 func (i *Info) Meta() (*Meta, error) {
 	resp, err := i.client.post("/info", map[string]any{
 		"type": "meta",
@@ -95,12 +147,7 @@ func (i *Info) Meta() (*Meta, error) {
 		return nil, fmt.Errorf("failed to fetch meta: %w", err)
 	}
 
-	var meta Meta
-	if err := json.Unmarshal(resp, &meta); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal meta response: %w", err)
-	}
-
-	return &meta, nil
+	return parseMetaResponse(resp)
 }
 
 func (i *Info) SpotMeta() (*SpotMeta, error) {
@@ -232,7 +279,7 @@ func (i *Info) UserFillsByTime(address string, startTime int64, endTime *int64) 
 	return result, nil
 }
 
-func (i *Info) MetaAndAssetCtxs() (map[string]any, error) {
+func (i *Info) MetaAndAssetCtxs() (*MetaAndAssetCtxs, error) {
 	resp, err := i.client.post("/info", map[string]any{
 		"type": "metaAndAssetCtxs",
 	})
@@ -240,14 +287,44 @@ func (i *Info) MetaAndAssetCtxs() (map[string]any, error) {
 		return nil, fmt.Errorf("failed to fetch meta and asset contexts: %w", err)
 	}
 
-	var result map[string]any
+	var result []any
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal meta and asset contexts: %w", err)
 	}
-	return result, nil
+
+	if len(result) < 2 {
+		return nil, fmt.Errorf("expected at least 2 elements in response, got %d", len(result))
+	}
+
+	metaBytes, err := json.Marshal(result[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal meta data: %w", err)
+	}
+
+	meta, err := parseMetaResponse(metaBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse meta: %w", err)
+	}
+
+	ctxsBytes, err := json.Marshal(result[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal ctxs data: %w", err)
+	}
+
+	var ctxs []AssetCtx
+	if err := json.Unmarshal(ctxsBytes, &ctxs); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal ctxs: %w", err)
+	}
+
+	metaAndAssetCtxs := &MetaAndAssetCtxs{
+		Meta: *meta,
+		Ctxs: ctxs,
+	}
+
+	return metaAndAssetCtxs, nil
 }
 
-func (i *Info) SpotMetaAndAssetCtxs() (map[string]any, error) {
+func (i *Info) SpotMetaAndAssetCtxs() (*SpotMetaAndAssetCtxs, error) {
 	resp, err := i.client.post("/info", map[string]any{
 		"type": "spotMetaAndAssetCtxs",
 	})
@@ -255,11 +332,41 @@ func (i *Info) SpotMetaAndAssetCtxs() (map[string]any, error) {
 		return nil, fmt.Errorf("failed to fetch spot meta and asset contexts: %w", err)
 	}
 
-	var result map[string]any
+	var result []any
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal spot meta and asset contexts: %w", err)
 	}
-	return result, nil
+
+	if len(result) < 2 {
+		return nil, fmt.Errorf("expected at least 2 elements in response, got %d", len(result))
+	}
+
+	// Unmarshal the first element (SpotMeta)
+	metaBytes, err := json.Marshal(result[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal meta data: %w", err)
+	}
+
+	var meta SpotMeta
+	if err := json.Unmarshal(metaBytes, &meta); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal meta: %w", err)
+	}
+
+	// Unmarshal the second element ([]SpotAssetCtx)
+	ctxsBytes, err := json.Marshal(result[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal ctxs data: %w", err)
+	}
+
+	var ctxs []SpotAssetCtx
+	if err := json.Unmarshal(ctxsBytes, &ctxs); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal ctxs: %w", err)
+	}
+
+	return &SpotMetaAndAssetCtxs{
+		Meta: meta,
+		Ctxs: ctxs,
+	}, nil
 }
 
 func (i *Info) FundingHistory(
