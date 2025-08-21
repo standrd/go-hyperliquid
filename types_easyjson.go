@@ -635,6 +635,10 @@ func easyjson6601e8cdDecodeGithubComSoniricoGoHyperliquid6(in *jlexer.Lexer, out
 			out.UserAddRate = string(in.String())
 		case "userCrossRate":
 			out.UserCrossRate = string(in.String())
+		case "userSpotCrossRate":
+			out.UserSpotCrossRate = string(in.String())
+		case "userSpotAddRate":
+			out.UserSpotAddRate = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -684,6 +688,16 @@ func easyjson6601e8cdEncodeGithubComSoniricoGoHyperliquid6(out *jwriter.Writer, 
 		const prefix string = ",\"userCrossRate\":"
 		out.RawString(prefix)
 		out.String(string(in.UserCrossRate))
+	}
+	{
+		const prefix string = ",\"userSpotCrossRate\":"
+		out.RawString(prefix)
+		out.String(string(in.UserSpotCrossRate))
+	}
+	{
+		const prefix string = ",\"userSpotAddRate\":"
+		out.RawString(prefix)
+		out.String(string(in.UserSpotAddRate))
 	}
 	out.RawByte('}')
 }
