@@ -34,8 +34,39 @@ type AssetInfo struct {
 	SzDecimals int    `json:"szDecimals"`
 }
 
+type MarginTier struct {
+	LowerBound  string `json:"lowerBound"`
+	MaxLeverage int    `json:"maxLeverage"`
+}
+
+type MarginTable struct {
+	ID          int
+	Description string       `json:"description"`
+	MarginTiers []MarginTier `json:"marginTiers"`
+}
+
 type Meta struct {
-	Universe []AssetInfo `json:"universe"`
+	Universe     []AssetInfo   `json:"universe"`
+	MarginTables []MarginTable `json:"marginTables"`
+}
+
+type AssetCtx struct {
+	Funding      string   `json:"funding"`
+	OpenInterest string   `json:"openInterest"`
+	PrevDayPx    string   `json:"prevDayPx"`
+	DayNtlVlm    string   `json:"dayNtlVlm"`
+	Premium      string   `json:"premium"`
+	OraclePx     string   `json:"oraclePx"`
+	MarkPx       string   `json:"markPx"`
+	MidPx        string   `json:"midPx,omitempty"`
+	ImpactPxs    []string `json:"impactPxs"`
+	DayBaseVlm   string   `json:"dayBaseVlm,omitempty"`
+}
+
+// This type has no JSON annotation because it cannot be directly unmarshalled from the response
+type MetaAndAssetCtxs struct {
+	Meta
+	Ctxs []AssetCtx
 }
 
 type SpotAssetInfo struct {
@@ -73,6 +104,12 @@ type SpotAssetCtx struct {
 	PrevDayPx         string  `json:"prevDayPx"`
 	CirculatingSupply string  `json:"circulatingSupply"`
 	Coin              string  `json:"coin"`
+}
+
+// This type has no JSON annotation because it cannot be directly unmarshalled from the response
+type SpotMetaAndAssetCtxs struct {
+	Meta SpotMeta
+	Ctxs []SpotAssetCtx
 }
 
 // WsMsg represents a WebSocket message with a channel and data payload.
