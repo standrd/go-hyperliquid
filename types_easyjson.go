@@ -5188,6 +5188,14 @@ func easyjson6601e8cdDecodeGithubComSoniricoGoHyperliquid51(in *jlexer.Lexer, ou
 			out.Size = string(in.String())
 		case "time":
 			out.Time = int64(in.Int64())
+		case "fee":
+			out.Fee = string(in.String())
+		case "feeToken":
+			out.FeeToken = string(in.String())
+		case "builderFee":
+			out.BuilderFee = string(in.String())
+		case "tid":
+			out.Tid = int64(in.Int64())
 		default:
 			in.SkipRecursive()
 		}
@@ -5256,6 +5264,26 @@ func easyjson6601e8cdEncodeGithubComSoniricoGoHyperliquid51(out *jwriter.Writer,
 		const prefix string = ",\"time\":"
 		out.RawString(prefix)
 		out.Int64(int64(in.Time))
+	}
+	{
+		const prefix string = ",\"fee\":"
+		out.RawString(prefix)
+		out.String(string(in.Fee))
+	}
+	{
+		const prefix string = ",\"feeToken\":"
+		out.RawString(prefix)
+		out.String(string(in.FeeToken))
+	}
+	if in.BuilderFee != "" {
+		const prefix string = ",\"builderFee\":"
+		out.RawString(prefix)
+		out.String(string(in.BuilderFee))
+	}
+	{
+		const prefix string = ",\"tid\":"
+		out.RawString(prefix)
+		out.Int64(int64(in.Tid))
 	}
 	out.RawByte('}')
 }
