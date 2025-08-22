@@ -234,3 +234,162 @@ func TestSpotMeta(t *testing.T) {
 	require.True(t, usdcFound, "USDC token should be present in tokens")
 	require.True(t, purrTokenFound, "PURR token should be present in tokens")
 }
+
+func TestQueryOrderByOid(t *testing.T) {
+	type tc struct {
+		name         string
+		cassetteName string
+		user         string
+		oid          int64
+		expected     *OrderQueryResult
+		wantErr      string
+		record       bool
+		useTestnet   bool
+	}
+
+	info := NewInfo(MainnetAPIURL, true, nil, nil)
+
+	cases := []tc{
+		{
+			name:         "TRX unknown order",
+			cassetteName: "QueryOrderByOid",
+			user:         "0x31ca8395cf837de08b24da3f660e77761dfb974b",
+			oid:          141622259364,
+			expected: &OrderQueryResult{
+				Status: OrderQueryStatusError,
+				Order:  OrderQueryResponse{},
+			},
+			record: false,
+		},
+		{
+			name:         "SAND unknown order",
+			cassetteName: "QueryOrderByOid",
+			user:         "0x31ca8395cf837de08b24da3f660e77761dfb974b",
+			oid:          141623226620,
+			expected: &OrderQueryResult{
+				Status: OrderQueryStatusError,
+				Order:  OrderQueryResponse{},
+			},
+			record: false,
+		},
+		{
+			name:         "User 0x8e0C473fed9630906779f982Cd0F80Cb7011812D order 37907159219",
+			cassetteName: "QueryOrderByOid",
+			user:         "0x8e0C473fed9630906779f982Cd0F80Cb7011812D",
+			oid:          37907159219,
+			expected: &OrderQueryResult{
+				Status: OrderQueryStatusSuccess,
+				Order: OrderQueryResponse{
+					Order: QueriedOrder{
+						Coin:             "ETH",
+						Side:             OrderSideBid,
+						LimitPx:          "4650.4",
+						Sz:               "0.0",
+						Oid:              37907159219,
+						Timestamp:        1755857898644,
+						TriggerCondition: "N/A",
+						IsTrigger:        false,
+						TriggerPx:        "0.0",
+						IsPositionTpsl:   false,
+						ReduceOnly:       false,
+						OrderType:        "Market",
+						OrigSz:           "0.0025",
+						Tif:              "FrontendMarket",
+						Cloid:            nil,
+					},
+					Status:          OrderStatusValueFilled,
+					StatusTimestamp: 1755857898644,
+				},
+			},
+			record:     false,
+			useTestnet: true,
+		},
+		{
+			name:         "User 0x8e0C473fed9630906779f982Cd0F80Cb7011812D order 37907165748",
+			cassetteName: "QueryOrderByOid",
+			user:         "0x8e0C473fed9630906779f982Cd0F80Cb7011812D",
+			oid:          37907165748,
+			expected: &OrderQueryResult{
+				Status: OrderQueryStatusSuccess,
+				Order: OrderQueryResponse{
+					Order: QueriedOrder{
+						Coin:             "ETH",
+						Side:             OrderSideAsk,
+						LimitPx:          "3960.7",
+						Sz:               "0.0",
+						Oid:              37907165748,
+						Timestamp:        1755857910772,
+						TriggerCondition: "N/A",
+						IsTrigger:        false,
+						TriggerPx:        "0.0",
+						IsPositionTpsl:   false,
+						ReduceOnly:       true,
+						OrderType:        "Market",
+						OrigSz:           "0.0025",
+						Tif:              "FrontendMarket",
+						Cloid:            nil,
+					},
+					Status:          OrderStatusValueFilled,
+					StatusTimestamp: 1755857910772,
+				},
+			},
+			record:     false,
+			useTestnet: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			initRecorder(tt, tc.record, tc.cassetteName)
+
+			var infoInstance *Info
+			if tc.useTestnet {
+				infoInstance = NewInfo(TestnetAPIURL, true, nil, nil)
+			} else {
+				infoInstance = info
+			}
+
+			res, err := infoInstance.QueryOrderByOid(tc.user, tc.oid)
+			tt.Logf("res: %+v", res)
+			tt.Logf("err: %v", err)
+
+			if tc.wantErr != "" {
+				require.Error(tt, err)
+				require.Contains(tt, err.Error(), tc.wantErr)
+				return
+			} else {
+				require.NoError(tt, err)
+			}
+
+			if err == nil {
+				require.NotNil(tt, res)
+				require.Equal(tt, tc.expected.Status, res.Status)
+
+				// If order is found, compare order details
+				if res.Status == OrderQueryStatusSuccess {
+					require.Equal(tt, tc.expected.Order.Status, res.Order.Status)
+					require.Equal(tt, tc.expected.Order.StatusTimestamp, res.Order.StatusTimestamp)
+
+					// Compare order details
+					expectedOrder := tc.expected.Order.Order
+					actualOrder := res.Order.Order
+					require.Equal(tt, expectedOrder.Coin, actualOrder.Coin)
+					require.Equal(tt, expectedOrder.Side, actualOrder.Side)
+					require.Equal(tt, expectedOrder.LimitPx, actualOrder.LimitPx)
+					require.Equal(tt, expectedOrder.Sz, actualOrder.Sz)
+					require.Equal(tt, expectedOrder.Oid, actualOrder.Oid)
+					require.Equal(tt, expectedOrder.Timestamp, actualOrder.Timestamp)
+					require.Equal(tt, expectedOrder.TriggerCondition, actualOrder.TriggerCondition)
+					require.Equal(tt, expectedOrder.IsTrigger, actualOrder.IsTrigger)
+					require.Equal(tt, expectedOrder.TriggerPx, actualOrder.TriggerPx)
+					require.Equal(tt, expectedOrder.IsPositionTpsl, actualOrder.IsPositionTpsl)
+					require.Equal(tt, expectedOrder.ReduceOnly, actualOrder.ReduceOnly)
+					require.Equal(tt, expectedOrder.OrderType, actualOrder.OrderType)
+					require.Equal(tt, expectedOrder.OrigSz, actualOrder.OrigSz)
+					require.Equal(tt, expectedOrder.Tif, actualOrder.Tif)
+					require.Equal(tt, expectedOrder.Cloid, actualOrder.Cloid)
+				}
+			}
+		})
+	}
+}
