@@ -67,7 +67,7 @@ func TestParsedWebsocket(t *testing.T) {
 
 		tradeHandler := &TradeHandler{}
 
-		_, err := ws.SubscribeToTradesParsed("BTC", tradeHandler)
+		_, err := ws.SubscribeToTradesParsed("BTC", tradeHandler.Handle)
 		if err != nil {
 			t.Fatalf("Failed to subscribe to trades: %v", err)
 		}
@@ -111,7 +111,7 @@ func TestParsedWebsocket(t *testing.T) {
 
 		orderbookHandler := &OrderbookHandler{}
 
-		_, err := ws.SubscribeToOrderbookParsed("BTC", orderbookHandler)
+		_, err := ws.SubscribeToOrderbookParsed("BTC", orderbookHandler.Handle)
 		if err != nil {
 			t.Fatalf("Failed to subscribe to orderbook: %v", err)
 		}
@@ -156,7 +156,7 @@ func ExampleParsedSubscription() {
 	tradeHandler := &TradeHandler{}
 
 	// Subscribe with automatic parsing - the compiler ensures we're handling the correct type
-	_, err := ws.SubscribeToTradesParsed("BTC", tradeHandler)
+	_, err := ws.SubscribeToTradesParsed("BTC", tradeHandler.Handle)
 	if err != nil {
 		panic(err)
 	}

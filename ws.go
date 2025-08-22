@@ -130,8 +130,8 @@ func (w *WebsocketClient) Subscribe(sub Subscription, callback func(WSMessage)) 
 
 // SubscribeParsed provides type-safe subscription with generic message types
 func (w *WebsocketClient) SubscribeParsed(sub ParsedSubscriptionInterface) (int, error) {
-	if sub == nil || sub.GetHandler() == nil {
-		return 0, fmt.Errorf("subscription and handler cannot be nil")
+	if sub == nil || sub.GetCallback() == nil {
+		return 0, fmt.Errorf("subscription and callback cannot be nil")
 	}
 
 	w.mu.Lock()
@@ -146,7 +146,7 @@ func (w *WebsocketClient) SubscribeParsed(sub ParsedSubscriptionInterface) (int,
 
 	w.parsedSubscriptions[key][id] = &parsedSubscriptionCallback[any]{
 		id:        id,
-		handler:   sub.GetHandler(),
+		callback:  sub.GetCallback(),
 		unmarshal: sub.GetUnmarshaler(),
 	}
 
@@ -310,12 +310,11 @@ func (w *WebsocketClient) dispatch(msg WSMessage) {
 				if parsedData, err := sub.unmarshal(msg.Data); err == nil {
 					// Now that we have parsed data, check if it matches the subscription filters
 					if w.matchesParsedSubscription(key, parsedData) {
-						// Use reflection to call the handler since we can't type assert to WSMessageHandler[any]
-						handlerValue := reflect.ValueOf(sub.handler)
-						if handlerValue.IsValid() && !handlerValue.IsNil() {
-							handleMethod := handlerValue.MethodByName("Handle")
-							if handleMethod.IsValid() {
-								handleMethod.Call([]reflect.Value{reflect.ValueOf(parsedData)})
+						// Call the callback function directly
+						if sub.callback != nil {
+							callbackValue := reflect.ValueOf(sub.callback)
+							if callbackValue.IsValid() && !callbackValue.IsNil() {
+								callbackValue.Call([]reflect.Value{reflect.ValueOf(parsedData)})
 							}
 						}
 					}
@@ -496,44 +495,44 @@ func (w *WebsocketClient) SubscribeToActiveAssetCtx(
 // Type-safe subscription convenience methods
 
 // SubscribeToTradesParsed subscribes to trades with parsed Trade messages
-func (w *WebsocketClient) SubscribeToTradesParsed(coin string, handler WSMessageHandler[[]WsTrade]) (int, error) {
-	sub := NewParsedSubscription("trades", handler).WithCoin(coin)
+func (w *WebsocketClient) SubscribeToTradesParsed(coin string, callback func([]WsTrade)) (int, error) {
+	sub := NewParsedSubscription("trades", callback).WithCoin(coin)
 	return w.SubscribeParsed(sub)
 }
 
 // SubscribeToOrderbookParsed subscribes to orderbook with parsed L2Book messages
-func (w *WebsocketClient) SubscribeToOrderbookParsed(coin string, handler WSMessageHandler[WsBook]) (int, error) {
-	sub := NewParsedSubscription("l2Book", handler).WithCoin(coin)
+func (w *WebsocketClient) SubscribeToOrderbookParsed(coin string, callback func(WsBook)) (int, error) {
+	sub := NewParsedSubscription("l2Book", callback).WithCoin(coin)
 	return w.SubscribeParsed(sub)
 }
 
 // SubscribeToAllMidsParsed subscribes to all mid prices with parsed messages
-func (w *WebsocketClient) SubscribeToAllMidsParsed(handler WSMessageHandler[map[string]string]) (int, error) {
-	sub := NewParsedSubscription("allMids", handler)
+func (w *WebsocketClient) SubscribeToAllMidsParsed(callback func(map[string]string)) (int, error) {
+	sub := NewParsedSubscription("allMids", callback)
 	return w.SubscribeParsed(sub)
 }
 
 // SubscribeToUserEventsParsed subscribes to user events with parsed messages
-func (w *WebsocketClient) SubscribeToUserEventsParsed(user string, handler WSMessageHandler[WsUserEvent]) (int, error) {
-	sub := NewParsedSubscription("userEvents", handler).WithUser(user)
+func (w *WebsocketClient) SubscribeToUserEventsParsed(user string, callback func(WsUserEvent)) (int, error) {
+	sub := NewParsedSubscription("userEvents", callback).WithUser(user)
 	return w.SubscribeParsed(sub)
 }
 
 // SubscribeToUserFillsParsed subscribes to user fills with parsed messages
-func (w *WebsocketClient) SubscribeToUserFillsParsed(user string, handler WSMessageHandler[[]WsFill]) (int, error) {
-	sub := NewParsedSubscription("userFills", handler).WithUser(user)
+func (w *WebsocketClient) SubscribeToUserFillsParsed(user string, callback func([]WsFill)) (int, error) {
+	sub := NewParsedSubscription("userFills", callback).WithUser(user)
 	return w.SubscribeParsed(sub)
 }
 
 // SubscribeToCandlesParsed subscribes to candle data with parsed messages
-func (w *WebsocketClient) SubscribeToCandlesParsed(coin, interval string, handler WSMessageHandler[[]WsCandle]) (int, error) {
-	sub := NewParsedSubscription("candle", handler).WithCoin(coin).WithInterval(interval)
+func (w *WebsocketClient) SubscribeToCandlesParsed(coin, interval string, callback func(WsCandle)) (int, error) {
+	sub := NewParsedSubscription("candle", callback).WithCoin(coin).WithInterval(interval)
 	return w.SubscribeParsed(sub)
 }
 
 // SubscribeToOrderUpdatesParsed subscribes to order updates with parsed messages
-func (w *WebsocketClient) SubscribeToOrderUpdatesParsed(handler WSMessageHandler[[]WsOrder]) (int, error) {
-	sub := NewParsedSubscription("orderUpdates", handler)
+func (w *WebsocketClient) SubscribeToOrderUpdatesParsed(callback func([]WsOrder)) (int, error) {
+	sub := NewParsedSubscription("orderUpdates", callback)
 	return w.SubscribeParsed(sub)
 }
 
@@ -563,11 +562,11 @@ func (w *WebsocketClient) matchesParsedSubscription(key subKey, parsedData any) 
 		}
 	case "candle":
 		// Candle has a symbol field that corresponds to coin
-		if candle, ok := parsedData.(WsCandle); ok {
-			if key.coin != "" && candle.S != key.coin {
+		if candles, ok := parsedData.(WsCandle); ok {
+			if key.coin != "" && candles.S != key.coin {
 				return false
 			}
-			if key.interval != "" && candle.I != key.interval {
+			if key.interval != "" && candles.I != key.interval {
 				return false
 			}
 			return true

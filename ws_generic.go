@@ -18,21 +18,21 @@ type ParsedWSMessage[T any] struct {
 // ParsedSubscriptionInterface provides a non-generic interface for parsed subscriptions
 type ParsedSubscriptionInterface interface {
 	GetSubscription() Subscription
-	GetHandler() any
+	GetCallback() any
 	GetUnmarshaler() func([]byte) (any, error)
 }
 
 // ParsedSubscription represents a type-safe subscription with a specific message type
 type ParsedSubscription[T any] struct {
 	Subscription
-	handler WSMessageHandler[T]
+	callback func(T)
 }
 
 // NewParsedSubscription creates a new parsed subscription
-func NewParsedSubscription[T any](subType string, handler WSMessageHandler[T]) *ParsedSubscription[T] {
+func NewParsedSubscription[T any](subType string, callback func(T)) *ParsedSubscription[T] {
 	return &ParsedSubscription[T]{
 		Subscription: Subscription{Type: subType},
-		handler:      handler,
+		callback:     callback,
 	}
 }
 
@@ -60,8 +60,8 @@ func (ps *ParsedSubscription[T]) GetSubscription() Subscription {
 }
 
 // GetHandler returns the message handler
-func (ps *ParsedSubscription[T]) GetHandler() any {
-	return ps.handler
+func (ps *ParsedSubscription[T]) GetCallback() any {
+	return ps.callback
 }
 
 // GetUnmarshaler returns a function that unmarshals JSON data to the correct type
@@ -85,6 +85,6 @@ func (d DefaultUnmarshaler[T]) Unmarshal(data []byte) (T, error) {
 // parsedSubscriptionCallback represents a type-safe subscription callback
 type parsedSubscriptionCallback[T any] struct {
 	id        int
-	handler   any
+	callback  any
 	unmarshal func([]byte) (any, error)
 }

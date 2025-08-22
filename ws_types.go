@@ -81,16 +81,16 @@ type AllMids struct {
 	Mids map[string]string `json:"mids"`
 }
 type WsCandle struct {
-	T  int64   `json:"t"` // open millis
-	TC int64   `json:"T"` // close millis
-	S  string  `json:"s"` // coin
-	I  string  `json:"i"` // interval
-	O  float64 `json:"o"` // open price
-	C  float64 `json:"c"` // close price
-	H  float64 `json:"h"` // high price
-	L  float64 `json:"l"` // low price
-	V  float64 `json:"v"` // volume (base unit)
-	N  int64   `json:"n"` // number of trades
+	T  int64  `json:"t"` // open millis
+	TC int64  `json:"T"` // close millis
+	S  string `json:"s"` // coin
+	I  string `json:"i"` // interval
+	O  string `json:"o"` // open price
+	C  string `json:"c"` // close price
+	H  string `json:"h"` // high price
+	L  string `json:"l"` // low price
+	V  string `json:"v"` // volume (base unit)
+	N  int64  `json:"n"` // number of trades
 }
 type WsUserEvent struct {
 	Fills         []WsFill          `json:"fills,omitempty"`

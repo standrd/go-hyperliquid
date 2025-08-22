@@ -2136,15 +2136,15 @@ func easyjson8df87204DecodeGithubComSoniricoGoHyperliquid20(in *jlexer.Lexer, ou
 		case "i":
 			out.I = string(in.String())
 		case "o":
-			out.O = float64(in.Float64())
+			out.O = string(in.String())
 		case "c":
-			out.C = float64(in.Float64())
+			out.C = string(in.String())
 		case "h":
-			out.H = float64(in.Float64())
+			out.H = string(in.String())
 		case "l":
-			out.L = float64(in.Float64())
+			out.L = string(in.String())
 		case "v":
-			out.V = float64(in.Float64())
+			out.V = string(in.String())
 		case "n":
 			out.N = int64(in.Int64())
 		default:
@@ -2184,27 +2184,27 @@ func easyjson8df87204EncodeGithubComSoniricoGoHyperliquid20(out *jwriter.Writer,
 	{
 		const prefix string = ",\"o\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.O))
+		out.String(string(in.O))
 	}
 	{
 		const prefix string = ",\"c\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.C))
+		out.String(string(in.C))
 	}
 	{
 		const prefix string = ",\"h\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.H))
+		out.String(string(in.H))
 	}
 	{
 		const prefix string = ",\"l\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.L))
+		out.String(string(in.L))
 	}
 	{
 		const prefix string = ",\"v\":"
 		out.RawString(prefix)
-		out.Float64(float64(in.V))
+		out.String(string(in.V))
 	}
 	{
 		const prefix string = ",\"n\":"
