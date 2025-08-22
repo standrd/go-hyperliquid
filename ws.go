@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,14 +22,28 @@ const (
 )
 
 type WebsocketClient struct {
-	url           string
-	conn          *websocket.Conn
-	mu            sync.RWMutex
-	writeMu       sync.Mutex
-	subscriptions map[subKey]map[int]*subscriptionCallback
-	nextSubID     atomic.Int32
-	done          chan struct{}
-	reconnectWait time.Duration
+	url                 string
+	conn                *websocket.Conn
+	mu                  sync.RWMutex
+	writeMu             sync.Mutex
+	subscriptions       map[subKey]map[int]*subscriptionCallback
+	parsedSubscriptions map[subKey]map[int]*parsedSubscriptionCallback[any]
+	// Reverse lookup maps for efficient unsubscribe by ID
+	subscriptionByID       map[int]*subscriptionInfo
+	parsedSubscriptionByID map[int]*parsedSubscriptionInfo
+	nextSubID              atomic.Int32
+	done                   chan struct{}
+	reconnectWait          time.Duration
+}
+
+type subscriptionInfo struct {
+	key subKey
+	sub Subscription
+}
+
+type parsedSubscriptionInfo struct {
+	key subKey
+	sub ParsedSubscriptionInterface
 }
 
 func NewWebsocketClient(baseURL string) *WebsocketClient {
@@ -44,10 +59,13 @@ func NewWebsocketClient(baseURL string) *WebsocketClient {
 	wsURL := parsedURL.String()
 
 	return &WebsocketClient{
-		url:           wsURL,
-		subscriptions: make(map[subKey]map[int]*subscriptionCallback),
-		done:          make(chan struct{}),
-		reconnectWait: time.Second,
+		url:                    wsURL,
+		subscriptions:          make(map[subKey]map[int]*subscriptionCallback),
+		parsedSubscriptions:    make(map[subKey]map[int]*parsedSubscriptionCallback[any]),
+		subscriptionByID:       make(map[int]*subscriptionInfo),
+		parsedSubscriptionByID: make(map[int]*parsedSubscriptionInfo),
+		done:                   make(chan struct{}),
+		reconnectWait:          time.Second,
 	}
 }
 
@@ -95,38 +113,104 @@ func (w *WebsocketClient) Subscribe(sub Subscription, callback func(WSMessage)) 
 		callback: callback,
 	}
 
+	// Store reverse lookup
+	w.subscriptionByID[id] = &subscriptionInfo{
+		key: key,
+		sub: sub,
+	}
+
 	if err := w.sendSubscribe(sub); err != nil {
 		delete(w.subscriptions[key], id)
+		delete(w.subscriptionByID, id)
 		return 0, fmt.Errorf("subscribe: %w", err)
 	}
 
 	return id, nil
 }
 
-func (w *WebsocketClient) Unsubscribe(sub Subscription, id int) error {
+// SubscribeParsed provides type-safe subscription with generic message types
+func (w *WebsocketClient) SubscribeParsed(sub ParsedSubscriptionInterface) (int, error) {
+	if sub == nil || sub.GetHandler() == nil {
+		return 0, fmt.Errorf("subscription and handler cannot be nil")
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	key := sub.key()
-	subs, ok := w.subscriptions[key]
-	if !ok {
-		return fmt.Errorf("subscription not found")
+	key := sub.GetSubscription().key()
+	id := int(w.nextSubID.Add(1))
+
+	if w.parsedSubscriptions[key] == nil {
+		w.parsedSubscriptions[key] = make(map[int]*parsedSubscriptionCallback[any])
 	}
 
-	if _, ok := subs[id]; !ok {
-		return fmt.Errorf("subscription ID not found")
+	w.parsedSubscriptions[key][id] = &parsedSubscriptionCallback[any]{
+		id:        id,
+		handler:   sub.GetHandler(),
+		unmarshal: sub.GetUnmarshaler(),
 	}
 
-	delete(subs, id)
+	// Store reverse lookup
+	w.parsedSubscriptionByID[id] = &parsedSubscriptionInfo{
+		key: key,
+		sub: sub,
+	}
 
-	if len(subs) == 0 {
-		delete(w.subscriptions, key)
-		if err := w.sendUnsubscribe(sub); err != nil {
-			return fmt.Errorf("unsubscribe: %w", err)
+	if err := w.sendSubscribe(sub.GetSubscription()); err != nil {
+		delete(w.parsedSubscriptions[key], id)
+		delete(w.parsedSubscriptionByID, id)
+		return 0, fmt.Errorf("subscribe: %w", err)
+	}
+
+	return id, nil
+}
+
+// Unsubscribe unsubscribes from a subscription by ID
+func (w *WebsocketClient) Unsubscribe(id int) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	// Check if it's a regular subscription
+	if info, ok := w.subscriptionByID[id]; ok {
+		subs := w.subscriptions[info.key]
+		if _, ok := subs[id]; !ok {
+			return fmt.Errorf("subscription ID not found")
 		}
+
+		delete(subs, id)
+		delete(w.subscriptionByID, id)
+
+		if len(subs) == 0 {
+			delete(w.subscriptions, info.key)
+			if err := w.sendUnsubscribe(info.sub); err != nil {
+				return fmt.Errorf("unsubscribe: %w", err)
+			}
+		}
+
+		return nil
 	}
 
-	return nil
+	// Check if it's a parsed subscription
+	if info, ok := w.parsedSubscriptionByID[id]; ok {
+		subs := w.parsedSubscriptions[info.key]
+		if _, ok := subs[id]; !ok {
+			return fmt.Errorf("subscription ID not found")
+		}
+
+		delete(subs, id)
+		delete(w.parsedSubscriptionByID, id)
+
+		if len(subs) == 0 {
+			delete(w.parsedSubscriptions, info.key)
+			if err := w.sendUnsubscribe(info.sub.GetSubscription()); err != nil {
+				return fmt.Errorf("unsubscribe: %w", err)
+			}
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("subscription ID not found")
 }
 
 func (w *WebsocketClient) Close() error {
@@ -208,10 +292,36 @@ func (w *WebsocketClient) dispatch(msg WSMessage) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
+	// Handle regular subscriptions
 	for key, subs := range w.subscriptions {
-		if matchSubscription(key, msg) {
+		// For regular subscriptions, we can match on channel type
+		if key.typ == msg.Channel {
 			for _, sub := range subs {
 				sub.callback(msg)
+			}
+		}
+	}
+
+	// Handle parsed subscriptions - parse first, then match
+	for key, subs := range w.parsedSubscriptions {
+		// First check if the channel matches the subscription type
+		if key.typ == msg.Channel {
+			for _, sub := range subs {
+				if parsedData, err := sub.unmarshal(msg.Data); err == nil {
+					// Now that we have parsed data, check if it matches the subscription filters
+					if w.matchesParsedSubscription(key, parsedData) {
+						// Use reflection to call the handler since we can't type assert to WSMessageHandler[any]
+						handlerValue := reflect.ValueOf(sub.handler)
+						if handlerValue.IsValid() && !handlerValue.IsNil() {
+							handleMethod := handlerValue.MethodByName("Handle")
+							if handleMethod.IsValid() {
+								handleMethod.Call([]reflect.Value{reflect.ValueOf(parsedData)})
+							}
+						}
+					}
+				} else {
+					log.Printf("failed to unmarshal parsed subscription data: %v", err)
+				}
 			}
 		}
 	}
@@ -249,6 +359,20 @@ func (w *WebsocketClient) resubscribeAll() error {
 			}
 			if err := w.sendSubscribe(sub); err != nil {
 				return fmt.Errorf("resubscribe: %w", err)
+			}
+		}
+	}
+
+	for key, subs := range w.parsedSubscriptions {
+		if len(subs) > 0 {
+			sub := Subscription{
+				Type:     key.typ,
+				Coin:     key.coin,
+				User:     key.user,
+				Interval: key.interval,
+			}
+			if err := w.sendSubscribe(sub); err != nil {
+				return fmt.Errorf("resubscribe parsed: %w", err)
 			}
 		}
 	}
@@ -369,15 +493,101 @@ func (w *WebsocketClient) SubscribeToActiveAssetCtx(
 	return w.Subscribe(sub, callback)
 }
 
-func matchSubscription(key subKey, msg WSMessage) bool {
-	switch key.typ {
-	case "l2Book":
-		return msg.Channel == "l2Book"
-	case "trades":
-		return msg.Channel == "trades"
-	case "candle":
-		return msg.Channel == "candle"
-	default:
-		return false
+// Type-safe subscription convenience methods
+
+// SubscribeToTradesParsed subscribes to trades with parsed Trade messages
+func (w *WebsocketClient) SubscribeToTradesParsed(coin string, handler WSMessageHandler[[]WsTrade]) (int, error) {
+	sub := NewParsedSubscription("trades", handler).WithCoin(coin)
+	return w.SubscribeParsed(sub)
+}
+
+// SubscribeToOrderbookParsed subscribes to orderbook with parsed L2Book messages
+func (w *WebsocketClient) SubscribeToOrderbookParsed(coin string, handler WSMessageHandler[WsBook]) (int, error) {
+	sub := NewParsedSubscription("l2Book", handler).WithCoin(coin)
+	return w.SubscribeParsed(sub)
+}
+
+// SubscribeToAllMidsParsed subscribes to all mid prices with parsed messages
+func (w *WebsocketClient) SubscribeToAllMidsParsed(handler WSMessageHandler[map[string]string]) (int, error) {
+	sub := NewParsedSubscription("allMids", handler)
+	return w.SubscribeParsed(sub)
+}
+
+// SubscribeToUserEventsParsed subscribes to user events with parsed messages
+func (w *WebsocketClient) SubscribeToUserEventsParsed(user string, handler WSMessageHandler[WsUserEvent]) (int, error) {
+	sub := NewParsedSubscription("userEvents", handler).WithUser(user)
+	return w.SubscribeParsed(sub)
+}
+
+// SubscribeToUserFillsParsed subscribes to user fills with parsed messages
+func (w *WebsocketClient) SubscribeToUserFillsParsed(user string, handler WSMessageHandler[[]WsFill]) (int, error) {
+	sub := NewParsedSubscription("userFills", handler).WithUser(user)
+	return w.SubscribeParsed(sub)
+}
+
+// SubscribeToCandlesParsed subscribes to candle data with parsed messages
+func (w *WebsocketClient) SubscribeToCandlesParsed(coin, interval string, handler WSMessageHandler[[]WsCandle]) (int, error) {
+	sub := NewParsedSubscription("candle", handler).WithCoin(coin).WithInterval(interval)
+	return w.SubscribeParsed(sub)
+}
+
+// SubscribeToOrderUpdatesParsed subscribes to order updates with parsed messages
+func (w *WebsocketClient) SubscribeToOrderUpdatesParsed(handler WSMessageHandler[[]WsOrder]) (int, error) {
+	sub := NewParsedSubscription("orderUpdates", handler)
+	return w.SubscribeParsed(sub)
+}
+
+// matchesParsedSubscription determines if parsed data matches a subscription based on filters
+func (w *WebsocketClient) matchesParsedSubscription(key subKey, parsedData any) bool {
+	// If no filters are set, always match
+	if key.coin == "" && key.user == "" && key.interval == "" {
+		return true
 	}
+
+	// Handle different data types based on subscription type
+	switch key.typ {
+	case "trades":
+		// Trades come as an array, check if any trade matches the coin filter
+		if trades, ok := parsedData.([]WsTrade); ok && key.coin != "" {
+			for _, trade := range trades {
+				if trade.Coin == key.coin {
+					return true
+				}
+			}
+			return false
+		}
+	case "l2Book":
+		// L2Book has a coin field
+		if book, ok := parsedData.(WsBook); ok && key.coin != "" {
+			return book.Coin == key.coin
+		}
+	case "candle":
+		// Candle has a symbol field that corresponds to coin
+		if candle, ok := parsedData.(WsCandle); ok {
+			if key.coin != "" && candle.S != key.coin {
+				return false
+			}
+			if key.interval != "" && candle.I != key.interval {
+				return false
+			}
+			return true
+		}
+	case "userFills":
+		// UserFills are already filtered by user at the subscription level
+		// The websocket only sends fills for the specific user, so no additional filtering needed
+		return true
+	case "orderUpdates":
+		// OrderUpdates come as an array, check if any order matches the coin filter
+		if orders, ok := parsedData.([]WsOrder); ok && key.coin != "" {
+			for _, order := range orders {
+				if order.Order.Coin == key.coin {
+					return true
+				}
+			}
+			return false
+		}
+	}
+
+	// For other types or if no specific filtering is needed, return true
+	return true
 }
