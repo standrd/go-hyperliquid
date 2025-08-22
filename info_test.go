@@ -373,21 +373,119 @@ func TestQueryOrderByOid(t *testing.T) {
 					// Compare order details
 					expectedOrder := tc.expected.Order.Order
 					actualOrder := res.Order.Order
-					require.Equal(tt, expectedOrder.Coin, actualOrder.Coin)
-					require.Equal(tt, expectedOrder.Side, actualOrder.Side)
-					require.Equal(tt, expectedOrder.LimitPx, actualOrder.LimitPx)
-					require.Equal(tt, expectedOrder.Sz, actualOrder.Sz)
-					require.Equal(tt, expectedOrder.Oid, actualOrder.Oid)
-					require.Equal(tt, expectedOrder.Timestamp, actualOrder.Timestamp)
-					require.Equal(tt, expectedOrder.TriggerCondition, actualOrder.TriggerCondition)
-					require.Equal(tt, expectedOrder.IsTrigger, actualOrder.IsTrigger)
-					require.Equal(tt, expectedOrder.TriggerPx, actualOrder.TriggerPx)
-					require.Equal(tt, expectedOrder.IsPositionTpsl, actualOrder.IsPositionTpsl)
-					require.Equal(tt, expectedOrder.ReduceOnly, actualOrder.ReduceOnly)
-					require.Equal(tt, expectedOrder.OrderType, actualOrder.OrderType)
-					require.Equal(tt, expectedOrder.OrigSz, actualOrder.OrigSz)
-					require.Equal(tt, expectedOrder.Tif, actualOrder.Tif)
-					require.Equal(tt, expectedOrder.Cloid, actualOrder.Cloid)
+					require.Equal(tt, expectedOrder, actualOrder)
+				}
+			}
+		})
+	}
+}
+
+func TestUserFillsByTime(t *testing.T) {
+	type tc struct {
+		name         string
+		cassetteName string
+		user         string
+		startTime    int64
+		endTime      *int64
+		expected     []Fill
+		wantErr      string
+		record       bool
+		useTestnet   bool
+	}
+
+	info := NewInfo(MainnetAPIURL, true, nil, nil)
+
+	cases := []tc{
+		{
+			name:         "User 0x8e0C473fed9630906779f982Cd0F80Cb7011812D fills in time range",
+			cassetteName: "UserFillsByTime",
+			user:         "0x8e0C473fed9630906779f982Cd0F80Cb7011812D",
+			startTime:    1755857880000,
+			endTime:      func() *int64 { t := int64(1755857940000); return &t }(),
+			expected: []Fill{
+				{
+					ClosedPnl:     "0.0",
+					Coin:          "ETH",
+					Crossed:       true,
+					Dir:           "Open Long",
+					Hash:          "0x7d6e6ad7ce8fdfdf7ee8041907273d010f0082bd6982feb12137162a8d83b9ca",
+					Oid:           37907159219,
+					Price:         "4307.4",
+					Side:          "B",
+					StartPosition: "0.0",
+					Size:          "0.0025",
+					Time:          1755857898644,
+					Fee:           "0.004845",
+					FeeToken:      "USDC",
+					BuilderFee:    "",
+					Tid:           1070455675927460,
+				},
+				{
+					ClosedPnl:     "-0.00925",
+					Coin:          "ETH",
+					Crossed:       true,
+					Dir:           "Close Long",
+					Hash:          "0x93ebdf1acc4dd95a9565041907278a010a00f7006740f82c37b48a6d8b41b345",
+					Oid:           37907165748,
+					Price:         "4303.7",
+					Side:          "A",
+					StartPosition: "0.0025",
+					Size:          "0.0025",
+					Time:          1755857910772,
+					Fee:           "0.004841",
+					FeeToken:      "USDC",
+					BuilderFee:    "",
+					Tid:           912424546441675,
+				},
+			},
+			record:     false,
+			useTestnet: true,
+		},
+		{
+			name:         "User with no fills in time range",
+			cassetteName: "UserFillsByTimeEmpty",
+			user:         "0x31ca8395cf837de08b24da3f660e77761dfb974b",
+			startTime:    1755857880000,
+			endTime:      func() *int64 { t := int64(1755857940000); return &t }(),
+			expected:     []Fill{},
+			record:       false,
+			useTestnet:   true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			initRecorder(tt, tc.record, tc.cassetteName)
+
+			var infoInstance *Info
+			if tc.useTestnet {
+				infoInstance = NewInfo(TestnetAPIURL, true, nil, nil)
+			} else {
+				infoInstance = info
+			}
+
+			res, err := infoInstance.UserFillsByTime(tc.user, tc.startTime, tc.endTime)
+			tt.Logf("res: %+v", res)
+			tt.Logf("err: %v", err)
+
+			if tc.wantErr != "" {
+				require.Error(tt, err)
+				require.Contains(tt, err.Error(), tc.wantErr)
+				return
+			} else {
+				require.NoError(tt, err)
+			}
+
+			if err == nil {
+				require.NotNil(tt, res)
+				require.Equal(tt, len(tc.expected), len(res))
+
+				// Compare each fill in the response
+				for i, expectedFill := range tc.expected {
+					if i < len(res) {
+						actualFill := res[i]
+						require.Equal(tt, expectedFill, actualFill)
+					}
 				}
 			}
 		})
