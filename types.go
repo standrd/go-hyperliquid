@@ -22,11 +22,13 @@ const (
 	DefaultSlippage = 0.05 // 5%
 )
 
+type Tif string
+
 // Order Time-in-Force constants
 const (
-	TifAlo = "Alo" // Add Liquidity Only
-	TifIoc = "Ioc" // Immediate or Cancel
-	TifGtc = "Gtc" // Good Till Cancel
+	TifAlo Tif = "Alo" // Add Liquidity Only
+	TifIoc Tif = "Ioc" // Immediate or Cancel
+	TifGtc Tif = "Gtc" // Good Till Cancel
 )
 
 type AssetInfo struct {
@@ -124,7 +126,7 @@ type OrderType struct {
 }
 
 type LimitOrderType struct {
-	Tif string `json:"tif"` // TifAlo, TifIoc, TifGtc
+	Tif Tif `json:"tif"` // TifAlo, TifIoc, TifGtc
 }
 
 type TriggerOrderType struct {
@@ -218,6 +220,112 @@ type OpenOrder struct {
 	Side      string  `json:"side"`
 	Size      float64 `json:"sz,string"`
 	Timestamp int64   `json:"timestamp"`
+}
+
+type OrderSide string
+
+const (
+	OrderSideAsk OrderSide = "A"
+	OrderSideBid OrderSide = "B"
+)
+
+type QueriedOrder struct {
+	Coin             string    `json:"coin"`
+	Side             OrderSide `json:"side"`
+	LimitPx          string    `json:"limitPx"`
+	Sz               string    `json:"sz"`
+	Oid              int64     `json:"oid"`
+	Timestamp        int64     `json:"timestamp"`
+	TriggerCondition string    `json:"triggerCondition"`
+	IsTrigger        bool      `json:"isTrigger"`
+	TriggerPx        string    `json:"triggerPx"`
+	IsPositionTpsl   bool      `json:"isPositionTpsl"`
+	ReduceOnly       bool      `json:"reduceOnly"`
+	OrderType        string    `json:"orderType"`
+	OrigSz           string    `json:"origSz"`
+	Tif              Tif       `json:"tif"`
+	Cloid            *string   `json:"cloid"`
+}
+
+type OrderQueryResponse struct {
+	Order           QueriedOrder     `json:"order"`
+	Status          OrderStatusValue `json:"status"`
+	StatusTimestamp int64            `json:"statusTimestamp"`
+}
+
+type OrderStatusValue string
+
+const (
+	// Placed successfully
+	OrderStatusValueOpen OrderStatusValue = "open"
+	// Filled
+	OrderStatusValueFilled OrderStatusValue = "filled"
+	// Canceled by user
+	OrderStatusValueCanceled OrderStatusValue = "canceled"
+	// Trigger order triggered
+	OrderStatusValueTriggered OrderStatusValue = "triggered"
+	// Rejected at time of placement
+	OrderStatusValueRejected OrderStatusValue = "rejected"
+	// Canceled because insufficient margin to fill
+	OrderStatusValueMarginCanceled OrderStatusValue = "marginCanceled"
+	// Vaults only. Canceled due to a user's withdrawal from vault
+	OrderStatusValueVaultWithdrawalCanceled OrderStatusValue = "vaultWithdrawalCanceled"
+	// Canceled due to order being too aggressive when open interest was at cap
+	OrderStatusValueOpenInterestCapCanceled OrderStatusValue = "openInterestCapCanceled"
+	// Canceled due to self-trade prevention
+	OrderStatusValueSelfTradeCanceled OrderStatusValue = "selfTradeCanceled"
+	// Canceled reduced-only order that does not reduce position
+	OrderStatusValueReduceOnlyCanceled OrderStatusValue = "reduceOnlyCanceled"
+	// TP/SL only. Canceled due to sibling ordering being filled
+	OrderStatusValueSiblingFilledCanceled OrderStatusValue = "siblingFilledCanceled"
+	// Canceled due to asset delisting
+	OrderStatusValueDelistedCanceled OrderStatusValue = "delistedCanceled"
+	// Canceled due to liquidation
+	OrderStatusValueLiquidatedCanceled OrderStatusValue = "liquidatedCanceled"
+	// API only. Canceled due to exceeding scheduled cancel deadline (dead man's switch)
+	OrderStatusValueScheduledCancel OrderStatusValue = "scheduledCancel"
+	// Rejected due to invalid tick price
+	OrderStatusValueTickRejected OrderStatusValue = "tickRejected"
+	// Rejected due to order notional below minimum
+	OrderStatusValueMinTradeNtlRejected OrderStatusValue = "minTradeNtlRejected"
+	// Rejected due to insufficient margin
+	OrderStatusValuePerpMarginRejected OrderStatusValue = "perpMarginRejected"
+	// Rejected due to reduce only
+	OrderStatusValueReduceOnlyRejected OrderStatusValue = "reduceOnlyRejected"
+	// Rejected due to post-only immediate match
+	OrderStatusValueBadAloPxRejected OrderStatusValue = "badAloPxRejected"
+	// Rejected due to IOC not able to match
+	OrderStatusValueIocCancelRejected OrderStatusValue = "iocCancelRejected"
+	// Rejected due to invalid TP/SL price
+	OrderStatusValueBadTriggerPxRejected OrderStatusValue = "badTriggerPxRejected"
+	// Rejected due to lack of liquidity for market order
+	OrderStatusValueMarketOrderNoLiquidityRejected OrderStatusValue = "marketOrderNoLiquidityRejected"
+	// Rejected due to open interest cap
+	OrderStatusValuePositionIncreaseAtOpenInterestCapRejected OrderStatusValue = "positionIncreaseAtOpenInterestCapRejected"
+	// Rejected due to open interest cap
+	OrderStatusValuePositionFlipAtOpenInterestCapRejected OrderStatusValue = "positionFlipAtOpenInterestCapRejected"
+	// Rejected due to price too aggressive at open interest cap
+	OrderStatusValueTooAggressiveAtOpenInterestCapRejected OrderStatusValue = "tooAggressiveAtOpenInterestCapRejected"
+	// Rejected due to open interest cap
+	OrderStatusValueOpenInterestIncreaseRejected OrderStatusValue = "openInterestIncreaseRejected"
+	// Rejected due to insufficient spot balance
+	OrderStatusValueInsufficientSpotBalanceRejected OrderStatusValue = "insufficientSpotBalanceRejected"
+	// Rejected due to price too far from oracle
+	OrderStatusValueOracleRejected OrderStatusValue = "oracleRejected"
+	// Rejected due to exceeding margin tier limit at current leverage
+	OrderStatusValuePerpMaxPositionRejected OrderStatusValue = "perpMaxPositionRejected"
+)
+
+type OrderQueryStatus string
+
+const (
+	OrderQueryStatusSuccess OrderQueryStatus = "order"
+	OrderQueryStatusError   OrderQueryStatus = "unknownOid"
+)
+
+type OrderQueryResult struct {
+	Status OrderQueryStatus   `json:"status"`
+	Order  OrderQueryResponse `json:"order,omitempty"`
 }
 
 type Fill struct {

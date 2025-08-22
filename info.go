@@ -513,7 +513,7 @@ func (i *Info) UserStakingRewards(address string) ([]StakingReward, error) {
 	return result, nil
 }
 
-func (i *Info) QueryOrderByOid(user string, oid int64) (*OpenOrder, error) {
+func (i *Info) QueryOrderByOid(user string, oid int64) (*OrderQueryResult, error) {
 	resp, err := i.client.post("/info", map[string]any{
 		"type": "orderStatus",
 		"user": user,
@@ -523,14 +523,14 @@ func (i *Info) QueryOrderByOid(user string, oid int64) (*OpenOrder, error) {
 		return nil, fmt.Errorf("failed to fetch order status: %w", err)
 	}
 
-	var result OpenOrder
+	var result OrderQueryResult
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal order status: %w", err)
 	}
 	return &result, nil
 }
 
-func (i *Info) QueryOrderByCloid(user, cloid string) (*OpenOrder, error) {
+func (i *Info) QueryOrderByCloid(user, cloid string) (*OrderQueryResult, error) {
 	resp, err := i.client.post("/info", map[string]any{
 		"type": "orderStatus",
 		"user": user,
@@ -540,7 +540,7 @@ func (i *Info) QueryOrderByCloid(user, cloid string) (*OpenOrder, error) {
 		return nil, fmt.Errorf("failed to fetch order status by cloid: %w", err)
 	}
 
-	var result OpenOrder
+	var result OrderQueryResult
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal order status: %w", err)
 	}
