@@ -536,6 +536,12 @@ func (w *WebsocketClient) SubscribeToOrderUpdatesParsed(callback func([]WsOrder)
 	return w.SubscribeParsed(sub)
 }
 
+// SubscribeToActiveAssetCtxParsed subscribes to active asset context with parsed messages
+func (w *WebsocketClient) SubscribeToActiveAssetCtxParsed(coin string, callback func(WsGeneralActiveAssetCtx)) (int, error) {
+	sub := NewParsedSubscription("activeAssetCtx", callback).WithCoin(coin)
+	return w.SubscribeParsed(sub)
+}
+
 // matchesParsedSubscription determines if parsed data matches a subscription based on filters
 func (w *WebsocketClient) matchesParsedSubscription(key subKey, parsedData any) bool {
 	// If no filters are set, always match
@@ -584,6 +590,10 @@ func (w *WebsocketClient) matchesParsedSubscription(key subKey, parsedData any) 
 				}
 			}
 			return false
+		}
+	case "activeAssetCtx":
+		if activeAssetCtx, ok := parsedData.(WsGeneralActiveAssetCtx); ok && key.coin != "" {
+			return activeAssetCtx.Coin == key.coin
 		}
 	}
 

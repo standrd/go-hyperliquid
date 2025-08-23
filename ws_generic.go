@@ -59,7 +59,7 @@ func (ps *ParsedSubscription[T]) GetSubscription() Subscription {
 	return ps.Subscription
 }
 
-// GetHandler returns the message handler
+// GetCallback returns the message handler
 func (ps *ParsedSubscription[T]) GetCallback() any {
 	return ps.callback
 }

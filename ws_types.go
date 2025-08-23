@@ -123,7 +123,7 @@ type WsFill struct {
 }
 type FillLiquidation struct {
 	LiquidatedUser *string `json:"liquidatedUser,omitempty"`
-	MarkPx         float64 `json:"markPx"`
+	MarkPx         string  `json:"markPx"`
 	Method         string  `json:"method"` // "market" | "backstop"
 }
 type WsUserFunding struct {
@@ -159,6 +159,20 @@ type WsBasicOrder struct {
 	OrigSz    string  `json:"origSz"`
 	Cloid     *string `json:"cloid,omitempty"`
 }
+
+type WsMergedActiveAssetCtx struct {
+	WsSharedAssetCtx
+	Funding           string `json:"funding,omitempty"`
+	OpenInterest      string `json:"openInterest,omitempty"`
+	OraclePx          string `json:"oraclePx,omitempty"`
+	CirculatingSupply string `json:"circulatingSupply,omitempty"`
+}
+
+type WsGeneralActiveAssetCtx struct {
+	Coin string                 `json:"coin"`
+	Ctx  WsMergedActiveAssetCtx `json:"ctx"`
+}
+
 type WsActiveAssetCtx struct {
 	Coin string          `json:"coin"`
 	Ctx  WsPerpsAssetCtx `json:"ctx"`
@@ -168,27 +182,27 @@ type WsActiveSpotAssetCtx struct {
 	Ctx  WsSpotAssetCtx `json:"ctx"`
 }
 type WsSharedAssetCtx struct {
-	DayNtlVlm float64  `json:"dayNtlVlm"`
-	PrevDayPx float64  `json:"prevDayPx"`
-	MarkPx    float64  `json:"markPx"`
-	MidPx     *float64 `json:"midPx,omitempty"`
+	DayNtlVlm string  `json:"dayNtlVlm"`
+	PrevDayPx string  `json:"prevDayPx"`
+	MarkPx    string  `json:"markPx"`
+	MidPx     *string `json:"midPx,omitempty"`
 }
 type WsPerpsAssetCtx struct {
 	WsSharedAssetCtx
-	Funding      float64 `json:"funding"`
-	OpenInterest float64 `json:"openInterest"`
-	OraclePx     float64 `json:"oraclePx"`
+	Funding      string `json:"funding"`
+	OpenInterest string `json:"openInterest"`
+	OraclePx     string `json:"oraclePx"`
 }
 type WsSpotAssetCtx struct {
 	WsSharedAssetCtx
-	CirculatingSupply float64 `json:"circulatingSupply"`
+	CirculatingSupply string `json:"circulatingSupply"`
 }
 type WsActiveAssetData struct {
 	User             string     `json:"user"`
 	Coin             string     `json:"coin"`
 	Leverage         WsLeverage `json:"leverage"`
-	MaxTradeSzs      []float64  `json:"maxTradeSzs"`
-	AvailableToTrade []float64  `json:"availableToTrade"`
+	MaxTradeSzs      []string   `json:"maxTradeSzs"`
+	AvailableToTrade []string   `json:"availableToTrade"`
 }
 type WsTwapSliceFill struct {
 	Fill   WsFill `json:"fill"`
@@ -200,16 +214,16 @@ type WsUserTwapSliceFills struct {
 	TwapSliceFills []WsTwapSliceFill `json:"twapSliceFills"`
 }
 type TwapState struct {
-	Coin        string  `json:"coin"`
-	User        string  `json:"user"`
-	Side        string  `json:"side"`
-	Sz          float64 `json:"sz"`
-	ExecutedSz  float64 `json:"executedSz"`
-	ExecutedNtl float64 `json:"executedNtl"`
-	Minutes     int     `json:"minutes"`
-	ReduceOnly  bool    `json:"reduceOnly"`
-	Randomize   bool    `json:"randomize"`
-	Timestamp   int64   `json:"timestamp"`
+	Coin        string `json:"coin"`
+	User        string `json:"user"`
+	Side        string `json:"side"`
+	Sz          string `json:"sz"`
+	ExecutedSz  string `json:"executedSz"`
+	ExecutedNtl string `json:"executedNtl"`
+	Minutes     int    `json:"minutes"`
+	ReduceOnly  bool   `json:"reduceOnly"`
+	Randomize   bool   `json:"randomize"`
+	Timestamp   int64  `json:"timestamp"`
 }
 
 type TwapStatus string
