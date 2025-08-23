@@ -491,3 +491,91 @@ func TestUserFillsByTime(t *testing.T) {
 		})
 	}
 }
+
+func TestSpotUserState(t *testing.T) {
+	type tc struct {
+		name         string
+		cassetteName string
+		user         string
+		expected     *SpotUserState
+		wantErr      string
+		record       bool
+		useTestnet   bool
+	}
+
+	info := NewInfo(MainnetAPIURL, true, nil, nil)
+
+	cases := []tc{
+		{
+			name:         "User 0x8e0C473fed9630906779f982Cd0F80Cb7011812D spot state",
+			cassetteName: "SpotUserState",
+			user:         "0x8e0C473fed9630906779f982Cd0F80Cb7011812D",
+			expected: &SpotUserState{
+				Balances: []SpotBalance{
+					{
+						Coin:     "USDC",
+						Token:    0,
+						Hold:     "0.0",
+						Total:    "19.9969993",
+						EntryNtl: "0.0",
+					},
+					{
+						Coin:     "HYPE",
+						Token:    1105,
+						Hold:     "0.2",
+						Total:    "0.24965",
+						EntryNtl: "24.982487",
+					},
+					{
+						Coin:     "USOL",
+						Token:    1279,
+						Hold:     "0.0",
+						Total:    "0.9993",
+						EntryNtl: "249.99",
+					},
+				},
+			},
+			record:     false,
+			useTestnet: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			initRecorder(tt, tc.record, tc.cassetteName)
+
+			var infoInstance *Info
+			if tc.useTestnet {
+				infoInstance = NewInfo(TestnetAPIURL, true, nil, nil)
+			} else {
+				infoInstance = info
+			}
+
+			res, err := infoInstance.SpotUserState(tc.user)
+			tt.Logf("res: %+v", res)
+			tt.Logf("err: %v", err)
+
+			if tc.wantErr != "" {
+				require.Error(tt, err)
+				require.Contains(tt, err.Error(), tc.wantErr)
+				return
+			} else {
+				require.NoError(tt, err)
+			}
+
+			if err == nil {
+				require.NotNil(tt, res)
+				require.NotNil(tt, tc.expected)
+				require.Equal(tt, len(tc.expected.Balances), len(res.Balances))
+
+				// Compare each balance in the response
+				for i, expectedBalance := range tc.expected.Balances {
+					if i < len(res.Balances) {
+						actualBalance := res.Balances[i]
+						require.Equal(tt, expectedBalance, actualBalance)
+					}
+				}
+			}
+		})
+	}
+}
