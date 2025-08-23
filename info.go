@@ -465,6 +465,23 @@ func (i *Info) UserFees(address string) (*UserFees, error) {
 	return &result, nil
 }
 
+func (i *Info) UserActiveAssetData(address string, coin string) (*UserActiveAssetData, error) {
+	resp, err := i.client.post("/info", map[string]any{
+		"type": "activeAssetData",
+		"user": address,
+		"coin": coin,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user active asset data: %w", err)
+	}
+
+	var result UserActiveAssetData
+	if err := json.Unmarshal(resp, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal user active asset data: %w", err)
+	}
+	return &result, nil
+}
+
 func (i *Info) UserStakingSummary(address string) (*StakingSummary, error) {
 	resp, err := i.client.post("/info", map[string]any{
 		"type": "delegatorSummary",
