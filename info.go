@@ -187,7 +187,7 @@ func (i *Info) UserState(address string) (*UserState, error) {
 	return &result, nil
 }
 
-func (i *Info) SpotUserState(address string) (*UserState, error) {
+func (i *Info) SpotUserState(address string) (*SpotUserState, error) {
 	resp, err := i.client.post("/info", map[string]any{
 		"type": "spotClearinghouseState",
 		"user": address,
@@ -196,7 +196,7 @@ func (i *Info) SpotUserState(address string) (*UserState, error) {
 		return nil, fmt.Errorf("failed to fetch spot user state: %w", err)
 	}
 
-	var result UserState
+	var result SpotUserState
 	if err := json.Unmarshal(resp, &result); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal spot user state: %w", err)
 	}
