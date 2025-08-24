@@ -106,14 +106,18 @@ func (w *WebsocketClient) subscribe(
 			payload,
 			// on subscribe
 			func(p subscriptable) {
-				w.sendSubscribe(p)
+				if err := w.sendSubscribe(p); err != nil {
+					log.Printf("failed to subscribe: %v", err)
+				}
 			},
 			// on unsubscribe
 			func(p subscriptable) {
 				w.mu.Lock()
 				defer w.mu.Unlock()
 				delete(w.subscribers, pkey)
-				w.sendUnsubscribe(p)
+				if err := w.sendUnsubscribe(p); err != nil {
+					log.Printf("failed to unsubscribe: %v", err)
+				}
 			},
 		)
 
@@ -196,7 +200,9 @@ func (w *WebsocketClient) readPump(ctx context.Context) {
 				continue
 			}
 
-			w.dispatch(wsMsg)
+			if err := w.dispatch(wsMsg); err != nil {
+				log.Printf("failed to dispatch websocket message: %v", err)
+			}
 		}
 	}
 }
