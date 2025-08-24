@@ -206,6 +206,18 @@ type UserState struct {
 	Withdrawable       string          `json:"withdrawable"`
 }
 
+type SpotBalance struct {
+	Coin     string `json:"coin"`
+	Token    int    `json:"token"`
+	Hold     string `json:"hold"`
+	Total    string `json:"total"`
+	EntryNtl string `json:"entryNtl"`
+}
+
+type SpotUserState struct {
+	Balances []SpotBalance `json:"balances"`
+}
+
 type MarginSummary struct {
 	AccountValue    string `json:"accountValue"`
 	TotalMarginUsed string `json:"totalMarginUsed"`
