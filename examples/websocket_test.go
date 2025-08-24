@@ -8,7 +8,7 @@ import (
 	"github.com/sonirico/go-hyperliquid"
 )
 
-func TestWebsocket2(t *testing.T) {
+func TestWebsocket(t *testing.T) {
 	ws := hyperliquid.NewWebsocketClient(hyperliquid.MainnetAPIURL)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

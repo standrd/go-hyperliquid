@@ -7,10 +7,11 @@ import (
 //go:generate easyjson
 
 const (
-	ChannelTrades  string = "trades"
-	ChannelL2Book  string = "l2Book"
-	ChannelCandle  string = "candle"
-	ChannelAllMids string = "allMids"
+	ChannelTrades      string = "trades"
+	ChannelL2Book      string = "l2Book"
+	ChannelCandle      string = "candle"
+	ChannelAllMids     string = "allMids"
+	ChannelSubResponse string = "subscriptionResponse"
 )
 
 //easyjson:json

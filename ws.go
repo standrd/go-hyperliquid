@@ -53,9 +53,10 @@ func NewWebsocketClient(baseURL string) *WebsocketClient {
 		reconnectWait: time.Second,
 		subscribers:   make(map[string]*uniqSubscriber),
 		msgDispatcherRegistry: map[string]msgDispatcher{
-			ChannelTrades: NewMsgDispatcher[Trades](ChannelTrades),
-			ChannelL2Book: NewMsgDispatcher[L2Book](ChannelL2Book),
-			ChannelCandle: NewMsgDispatcher[Candles](ChannelCandle),
+			ChannelTrades:      NewMsgDispatcher[Trades](ChannelTrades),
+			ChannelL2Book:      NewMsgDispatcher[L2Book](ChannelL2Book),
+			ChannelCandle:      NewMsgDispatcher[Candles](ChannelCandle),
+			ChannelSubResponse: NewNoopDispatcher(),
 			//"allMids":     NewMsgDispatcher[[]MidPrice]("allMids"),
 			//"userEvents":  NewMsgDispatcher[[]UserEvent]("userEvents"),
 		},
@@ -188,10 +189,6 @@ func (w *WebsocketClient) readPump(ctx context.Context) {
 					w.reconnect()
 				}
 				return
-			}
-
-			if string(msg) == "Websocket connection established." {
-				continue
 			}
 
 			var wsMsg wsMessage

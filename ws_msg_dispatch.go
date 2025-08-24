@@ -35,3 +35,9 @@ func NewMsgDispatcher[T subscriptable](channel string) msgDispatcher {
 		return nil
 	})
 }
+
+func NewNoopDispatcher() msgDispatcher {
+	return msgDispatcherFunc[any](func(subs []*uniqSubscriber, msg wsMessage) error {
+		return nil
+	})
+}
