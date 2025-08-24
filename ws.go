@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/sonirico/vago/maps"
 )
 
 const (
@@ -21,14 +23,16 @@ const (
 )
 
 type WebsocketClient struct {
-	url           string
-	conn          *websocket.Conn
-	mu            sync.RWMutex
-	writeMu       sync.Mutex
-	subscriptions map[subKey]map[int]*subscriptionCallback
-	nextSubID     atomic.Int32
-	done          chan struct{}
-	reconnectWait time.Duration
+	url                   string
+	conn                  *websocket.Conn
+	mu                    sync.RWMutex
+	writeMu               sync.Mutex
+	subscribers           map[string]*uniqSubscriber
+	msgDispatcherRegistry map[string]msgDispatcher
+	nextSubID             atomic.Int64
+	done                  chan struct{}
+	closeOnce             sync.Once
+	reconnectWait         time.Duration
 }
 
 func NewWebsocketClient(baseURL string) *WebsocketClient {
@@ -45,9 +49,16 @@ func NewWebsocketClient(baseURL string) *WebsocketClient {
 
 	return &WebsocketClient{
 		url:           wsURL,
-		subscriptions: make(map[subKey]map[int]*subscriptionCallback),
 		done:          make(chan struct{}),
 		reconnectWait: time.Second,
+		subscribers:   make(map[string]*uniqSubscriber),
+		msgDispatcherRegistry: map[string]msgDispatcher{
+			ChannelTrades: NewMsgDispatcher[Trades](ChannelTrades),
+			ChannelL2Book: NewMsgDispatcher[L2Book](ChannelL2Book),
+			ChannelCandle: NewMsgDispatcher[Candles](ChannelCandle),
+			//"allMids":     NewMsgDispatcher[[]MidPrice]("allMids"),
+			//"userEvents":  NewMsgDispatcher[[]UserEvent]("userEvents"),
+		},
 	}
 }
 
@@ -75,61 +86,63 @@ func (w *WebsocketClient) Connect(ctx context.Context) error {
 	return w.resubscribeAll()
 }
 
-func (w *WebsocketClient) Subscribe(sub Subscription, callback func(WSMessage)) (int, error) {
+type Handler[T subscriptable] func(wsMessage) (T, error)
+
+func (w *WebsocketClient) subscribe(
+	payload subscriptable,
+	callback func(any),
+) (*Subscription, error) {
 	if callback == nil {
-		return 0, fmt.Errorf("callback cannot be nil")
+		return nil, fmt.Errorf("callback cannot be nil")
 	}
 
 	w.mu.Lock()
-	defer w.mu.Unlock()
 
-	key := sub.key()
-	id := int(w.nextSubID.Add(1))
+	pkey := payload.Key()
+	subscriber, exists := w.subscribers[pkey]
+	if !exists {
+		subscriber = newUniqSubscriber(
+			pkey,
+			payload,
+			// on subscribe
+			func(p subscriptable) {
+				w.sendSubscribe(p)
+			},
+			// on unsubscribe
+			func(p subscriptable) {
+				w.mu.Lock()
+				defer w.mu.Unlock()
+				delete(w.subscribers, pkey)
+				w.sendUnsubscribe(p)
+			},
+		)
 
-	if w.subscriptions[key] == nil {
-		w.subscriptions[key] = make(map[int]*subscriptionCallback)
+		w.subscribers[pkey] = subscriber
 	}
 
-	w.subscriptions[key][id] = &subscriptionCallback{
-		id:       id,
-		callback: callback,
-	}
+	w.mu.Unlock()
 
-	if err := w.sendSubscribe(sub); err != nil {
-		delete(w.subscriptions[key], id)
-		return 0, fmt.Errorf("subscribe: %w", err)
-	}
+	nextID := w.nextSubID.Add(1)
+	subID := key(pkey, strconv.Itoa(int(nextID)))
+	subscriber.subscribe(subID, callback)
 
-	return id, nil
-}
-
-func (w *WebsocketClient) Unsubscribe(sub Subscription, id int) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	key := sub.key()
-	subs, ok := w.subscriptions[key]
-	if !ok {
-		return fmt.Errorf("subscription not found")
-	}
-
-	if _, ok := subs[id]; !ok {
-		return fmt.Errorf("subscription ID not found")
-	}
-
-	delete(subs, id)
-
-	if len(subs) == 0 {
-		delete(w.subscriptions, key)
-		if err := w.sendUnsubscribe(sub); err != nil {
-			return fmt.Errorf("unsubscribe: %w", err)
-		}
-	}
-
-	return nil
+	return &Subscription{
+		ID: subID,
+		Close: func() {
+			subscriber.unsubscribe(subID)
+		},
+	}, nil
 }
 
 func (w *WebsocketClient) Close() error {
+	var err error
+	w.closeOnce.Do(func() {
+		err = w.close()
+	})
+	return err
+}
+
+func (w *WebsocketClient) close() error {
 	close(w.done)
 
 	w.mu.Lock()
@@ -137,6 +150,10 @@ func (w *WebsocketClient) Close() error {
 
 	if w.conn != nil {
 		return w.conn.Close()
+	}
+
+	for _, subscriber := range w.subscribers {
+		subscriber.clear()
 	}
 	return nil
 }
@@ -173,7 +190,7 @@ func (w *WebsocketClient) readPump(ctx context.Context) {
 				continue
 			}
 
-			var wsMsg WSMessage
+			var wsMsg wsMessage
 			if err := json.Unmarshal(msg, &wsMsg); err != nil {
 				log.Printf("websocket message parse error: %v", err)
 				continue
@@ -204,17 +221,19 @@ func (w *WebsocketClient) pingPump(ctx context.Context) {
 	}
 }
 
-func (w *WebsocketClient) dispatch(msg WSMessage) {
+func (w *WebsocketClient) dispatch(msg wsMessage) error {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	for key, subs := range w.subscriptions {
-		if matchSubscription(key, msg) {
-			for _, sub := range subs {
-				sub.callback(msg)
-			}
-		}
+	//println("[<] " + msg.Channel)
+	//println("[<] " + string(msg.Data))
+
+	dispatcher, ok := w.msgDispatcherRegistry[msg.Channel]
+	if !ok {
+		return fmt.Errorf("no dispatcher for channel: %s", msg.Channel)
 	}
+
+	return dispatcher.Dispatch(maps.Values(w.subscribers), msg)
 }
 
 func (w *WebsocketClient) reconnect() {
@@ -230,7 +249,7 @@ func (w *WebsocketClient) reconnect() {
 				return
 			}
 			time.Sleep(w.reconnectWait)
-			w.reconnectWait *= 2
+			w.reconnectWait *= 2 // TODO: configurable strategies such as exponential backoff and the like
 			if w.reconnectWait > time.Minute {
 				w.reconnectWait = time.Minute
 			}
@@ -239,33 +258,25 @@ func (w *WebsocketClient) reconnect() {
 }
 
 func (w *WebsocketClient) resubscribeAll() error {
-	for key, subs := range w.subscriptions {
-		if len(subs) > 0 {
-			sub := Subscription{
-				Type:     key.typ,
-				Coin:     key.coin,
-				User:     key.user,
-				Interval: key.interval,
-			}
-			if err := w.sendSubscribe(sub); err != nil {
-				return fmt.Errorf("resubscribe: %w", err)
-			}
+	for _, subscriber := range w.subscribers {
+		if err := w.sendSubscribe(subscriber.subscriptionPayload); err != nil {
+			return fmt.Errorf("resubscribe: %w", err)
 		}
 	}
 	return nil
 }
 
-func (w *WebsocketClient) sendSubscribe(sub Subscription) error {
+func (w *WebsocketClient) sendSubscribe(payload subscriptable) error {
 	return w.writeJSON(WsCommand{
 		Method:       "subscribe",
-		Subscription: &sub,
+		Subscription: payload,
 	})
 }
 
-func (w *WebsocketClient) sendUnsubscribe(sub Subscription) error {
+func (w *WebsocketClient) sendUnsubscribe(payload subscriptable) error {
 	return w.writeJSON(WsCommand{
 		Method:       "unsubscribe",
-		Subscription: &sub,
+		Subscription: payload,
 	})
 }
 
@@ -281,103 +292,9 @@ func (w *WebsocketClient) writeJSON(v any) error {
 		return fmt.Errorf("connection closed")
 	}
 
+	// debug
+	//bts, _ := json.Marshal(v)
+	//println("[>] " + fmt.Sprintf("%s", string(bts)))
+
 	return w.conn.WriteJSON(v)
-}
-
-func (w *WebsocketClient) SubscribeToTrades(coin string, callback func(WSMessage)) (int, error) {
-	sub := Subscription{Type: "trades", Coin: coin}
-	return w.Subscribe(sub, callback)
-}
-
-func (w *WebsocketClient) SubscribeToOrderbook(coin string, callback func(WSMessage)) (int, error) {
-	sub := Subscription{Type: "l2Book", Coin: coin}
-	return w.Subscribe(sub, callback)
-}
-
-// SubscribeToAllMids subscribes to all mid prices
-func (w *WebsocketClient) SubscribeToAllMids(callback func(WSMessage)) (int, error) {
-	sub := Subscription{Type: "allMids"}
-	return w.Subscribe(sub, callback)
-}
-
-// SubscribeToUserEvents subscribes to user events
-func (w *WebsocketClient) SubscribeToUserEvents(
-	user string,
-	callback func(WSMessage),
-) (int, error) {
-	sub := Subscription{Type: "userEvents", User: user}
-	return w.Subscribe(sub, callback)
-}
-
-// SubscribeToUserFills subscribes to user fills
-func (w *WebsocketClient) SubscribeToUserFills(user string, callback func(WSMessage)) (int, error) {
-	sub := Subscription{Type: "userFills", User: user}
-	return w.Subscribe(sub, callback)
-}
-
-// SubscribeToCandles subscribes to candle data
-func (w *WebsocketClient) SubscribeToCandles(
-	coin, interval string,
-	callback func(WSMessage),
-) (int, error) {
-	sub := Subscription{Type: "candle", Coin: coin, Interval: interval}
-	return w.Subscribe(sub, callback)
-}
-
-// SubscribeToOrderUpdates subscribes to order updates
-func (w *WebsocketClient) SubscribeToOrderUpdates(callback func(WSMessage)) (int, error) {
-	sub := Subscription{Type: "orderUpdates"}
-	return w.Subscribe(sub, callback)
-}
-
-// SubscribeToUserFundings subscribes to user funding updates
-func (w *WebsocketClient) SubscribeToUserFundings(
-	user string,
-	callback func(WSMessage),
-) (int, error) {
-	sub := Subscription{Type: "userFundings", User: user}
-	return w.Subscribe(sub, callback)
-}
-
-// SubscribeToUserNonFundingLedgerUpdates subscribes to user non-funding ledger updates
-func (w *WebsocketClient) SubscribeToUserNonFundingLedgerUpdates(
-	user string,
-	callback func(WSMessage),
-) (int, error) {
-	sub := Subscription{Type: "userNonFundingLedgerUpdates", User: user}
-	return w.Subscribe(sub, callback)
-}
-
-// SubscribeToWebData2 subscribes to web data v2
-func (w *WebsocketClient) SubscribeToWebData2(user string, callback func(WSMessage)) (int, error) {
-	sub := Subscription{Type: "webData2", User: user}
-	return w.Subscribe(sub, callback)
-}
-
-// SubscribeToBBO subscribes to best bid/offer data
-func (w *WebsocketClient) SubscribeToBBO(coin string, callback func(WSMessage)) (int, error) {
-	sub := Subscription{Type: "bbo", Coin: coin}
-	return w.Subscribe(sub, callback)
-}
-
-// SubscribeToActiveAssetCtx subscribes to active asset context
-func (w *WebsocketClient) SubscribeToActiveAssetCtx(
-	coin string,
-	callback func(WSMessage),
-) (int, error) {
-	sub := Subscription{Type: "activeAssetCtx", Coin: coin}
-	return w.Subscribe(sub, callback)
-}
-
-func matchSubscription(key subKey, msg WSMessage) bool {
-	switch key.typ {
-	case "l2Book":
-		return msg.Channel == "l2Book"
-	case "trades":
-		return msg.Channel == "trades"
-	case "candle":
-		return msg.Channel == "candle"
-	default:
-		return false
-	}
 }

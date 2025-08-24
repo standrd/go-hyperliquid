@@ -27,7 +27,7 @@ This Go SDK provides **full feature parity** with the official Python SDK, inclu
 - **Advanced Trading**: Market open/close with slippage protection, scheduled cancellations
 - **Builder Support**: Order routing through builders with fee structures
 
-### Account Management  
+### Account Management
 
 - **Referral System**: Set referral codes, track referral state
 - **Sub-Accounts**: Create and manage sub-accounts, transfer funds
@@ -45,7 +45,7 @@ This Go SDK provides **full feature parity** with the official Python SDK, inclu
 ### Advanced Features
 
 - **Agent Approval**: Approve trading agents with permissions
-- **Builder Fee Management**: Approve and manage builder fees  
+- **Builder Fee Management**: Approve and manage builder fees
 - **Big Blocks**: Enable/disable big block usage
 
 ### Deployment Features (Advanced)
@@ -60,7 +60,7 @@ This Go SDK provides **full feature parity** with the official Python SDK, inclu
 - **Signer Operations**: Jail/unjail self, inner actions
 - **Consensus Actions**: Full consensus layer interaction
 
-### WebSocket Features  
+### WebSocket Features
 
 - **Market Data**: Real-time L2 book, trades, candles, mid prices
 - **User Events**: Order updates, fills, funding, ledger updates
@@ -75,7 +75,7 @@ import (
     "context"
     "fmt"
     "log"
-    
+
     "github.com/ethereum/go-ethereum/crypto"
     hyperliquid "github.com/sonirico/go-hyperliquid"
 )
@@ -83,7 +83,7 @@ import (
 func main() {
     // Initialize client
     client := hyperliquid.NewClient(hyperliquid.MainnetAPIURL)
-    
+
     // For trading, create an Exchange with your private key
     privateKey, _ := crypto.HexToECDSA("your-private-key")
     exchange := hyperliquid.NewExchange(
@@ -94,7 +94,7 @@ func main() {
         "account-address",
         nil,    // SpotMeta will be fetched automatically
     )
-    
+
     // Place a limit order
     order := hyperliquid.OrderRequest{
         Coin:    "BTC",
@@ -107,24 +107,24 @@ func main() {
             },
         },
     }
-    
+
     resp, err := exchange.Order(order, nil)
     if err != nil {
         log.Fatal(err)
     }
-    
+
     // Subscribe to WebSocket updates
     ws := hyperliquid.NewWebsocketClient(hyperliquid.MainnetAPIURL)
     if err := ws.Connect(context.Background()); err != nil {
         log.Fatal(err)
     }
     defer ws.Close()
-    
+
     // Subscribe to BTC trades
     _, err = ws.Subscribe(hyperliquid.Subscription{
         Type: "trades",
         Coin: "BTC",
-    }, func(msg hyperliquid.WSMessage) {
+    }, func(msg hyperliquid.wsMessage) {
         fmt.Printf("Trade: %+v\n", msg)
     })
 }
@@ -172,13 +172,13 @@ make ci-test
 ### ✅ Completed Features
 
 - [x] Complete WebSocket API implementation
-- [x] REST API client  
+- [x] REST API client
 - [x] All trading operations (orders, positions, leverage)
 - [x] Market data (L2 book, trades, candles, all mids)
 - [x] User account management
 - [x] Referral system implementation
 - [x] Sub-account management
-- [x] Vault operations  
+- [x] Vault operations
 - [x] USD and spot transfers
 - [x] Bridge operations
 - [x] Agent approval system
@@ -186,7 +186,7 @@ make ci-test
 - [x] Multi-signature support
 - [x] Token delegation/staking
 - [x] Spot deployment features
-- [x] Perp deployment features  
+- [x] Perp deployment features
 - [x] Consensus layer (validator operations)
 - [x] Full feature parity with Python SDK
 

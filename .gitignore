@@ -30,3 +30,4 @@ go.work
 
 # Environment variables
 .env
+__debug*

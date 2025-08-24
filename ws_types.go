@@ -4,42 +4,56 @@ import (
 	"encoding/json"
 )
 
-//go:generate easyjson -all ws_types.go
+//go:generate easyjson
 
-type WSMessage struct {
+const (
+	ChannelTrades  string = "trades"
+	ChannelL2Book  string = "l2Book"
+	ChannelCandle  string = "candle"
+	ChannelAllMids string = "allMids"
+)
+
+//easyjson:json
+type wsMessage struct {
 	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
 }
 
 type Subscription struct {
-	Type     string `json:"type"`
-	Coin     string `json:"coin,omitempty"`
-	User     string `json:"user,omitempty"`
-	Interval string `json:"interval,omitempty"`
+	ID      string
+	Payload any
+	Close   func()
 }
 
-type subKey struct {
-	typ      string
-	coin     string
-	user     string
-	interval string
-}
-
-func (s Subscription) key() subKey {
-	return subKey{
-		typ:      s.Type,
-		coin:     s.Coin,
-		user:     s.User,
-		interval: s.Interval,
-	}
-}
-
+//easyjson:json
 type WsCommand struct {
-	Method       string        `json:"method"`
-	Subscription *Subscription `json:"subscription,omitempty"`
+	Method       string `json:"method"`
+	Subscription any    `json:"subscription,omitempty"`
 }
 
-type subscriptionCallback struct {
-	id       int
-	callback func(WSMessage)
+type subscriptable interface {
+	Key() string
+}
+
+type (
+	Trades  []Trade
+	Candles []Candle
+)
+
+func (t Trades) Key() string {
+	if len(t) == 0 {
+		return ""
+	}
+	return keyTrades(t[0].Coin)
+}
+
+func (c Candles) Key() string {
+	if len(c) == 0 {
+		return ""
+	}
+	return key(ChannelCandle, c[0].Symbol, c[0].Interval)
+}
+
+func (c L2Book) Key() string {
+	return key(ChannelL2Book, c.Coin)
 }

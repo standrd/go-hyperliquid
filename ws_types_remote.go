@@ -1,0 +1,46 @@
+package hyperliquid
+
+//go:generate easyjson -all
+
+type remoteL2BookSubscriptionPayload struct {
+	Type     string `json:"type"`
+	Coin     string `json:"coin"`
+	NSigFigs int    `json:"nSigFigs,omitempty"`
+	Mantissa int    `json:"mantissa,omitempty"`
+}
+
+func (p remoteL2BookSubscriptionPayload) Channel() string {
+	return p.Type
+}
+
+func (p remoteL2BookSubscriptionPayload) Key() string {
+	// Deliberately exclude NSigFigs and Mantissa.
+	return keyL2Book(p.Coin)
+}
+
+type remoteTradesSubscriptionPayload struct {
+	Type string `json:"type"`
+	Coin string `json:"coin"`
+}
+
+func (p remoteTradesSubscriptionPayload) Channel() string {
+	return p.Type
+}
+
+func (p remoteTradesSubscriptionPayload) Key() string {
+	return keyTrades(p.Coin)
+}
+
+type remoteCandlesSubscriptionPayload struct {
+	Type     string `json:"type"`
+	Coin     string `json:"coin"`
+	Interval string `json:"interval"`
+}
+
+func (p remoteCandlesSubscriptionPayload) Channel() string {
+	return p.Type
+}
+
+func (p remoteCandlesSubscriptionPayload) Key() string {
+	return keyCandles(p.Coin, p.Interval)
+}
