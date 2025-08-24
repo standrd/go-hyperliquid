@@ -383,6 +383,15 @@ type UserFees struct {
 	UserSpotAddRate        string       `json:"userSpotAddRate"`
 }
 
+type UserActiveAssetData struct {
+	User             string   `json:"user"`
+	Coin             string   `json:"coin"`
+	Leverage         Leverage `json:"leverage"`
+	MaxTradeSzs      []string `json:"maxTradeSzs"`
+	AvailableToTrade []string `json:"availableToTrade"`
+	MarkPx           string   `json:"markPx"`
+}
+
 type UserVolume struct {
 	Date      string `json:"date"`
 	Exchange  string `json:"exchange"`

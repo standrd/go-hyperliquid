@@ -491,3 +491,72 @@ func TestUserFillsByTime(t *testing.T) {
 		})
 	}
 }
+
+func TestUserActiveAssetData(t *testing.T) {
+	type tc struct {
+		name         string
+		cassetteName string
+		user         string
+		coin         string
+		expected     *UserActiveAssetData
+		wantErr      string
+		record       bool
+		useTestnet   bool
+	}
+
+	info := NewInfo(MainnetAPIURL, true, nil, nil)
+
+	cases := []tc{
+		{
+			name:         "User 0x8e0C473fed9630906779f982Cd0F80Cb7011812D active asset data for HYPE",
+			cassetteName: "UserActiveAssetData",
+			user:         "0x8e0C473fed9630906779f982Cd0F80Cb7011812D",
+			coin:         "HYPE",
+			expected: &UserActiveAssetData{
+				User: "0x8e0c473fed9630906779f982cd0f80cb7011812d",
+				Coin: "HYPE",
+				Leverage: Leverage{
+					Type:  "cross",
+					Value: 10,
+				},
+				MaxTradeSzs:      []string{"72.42", "72.42"},
+				AvailableToTrade: []string{"680.955673", "680.955673"},
+				MarkPx:           "94.017",
+			},
+			record:     false, // Set to false after recording
+			useTestnet: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(tt *testing.T) {
+			initRecorder(tt, tc.record, tc.cassetteName)
+
+			var infoInstance *Info
+			if tc.useTestnet {
+				infoInstance = NewInfo(TestnetAPIURL, true, nil, nil)
+			} else {
+				infoInstance = info
+			}
+
+			res, err := infoInstance.UserActiveAssetData(tc.user, tc.coin)
+			tt.Logf("res: %+v", res)
+			tt.Logf("err: %v", err)
+
+			if tc.wantErr != "" {
+				require.Error(tt, err)
+				require.Contains(tt, err.Error(), tc.wantErr)
+				return
+			} else {
+				require.NoError(tt, err)
+			}
+
+			if err == nil {
+				require.NotNil(tt, res)
+
+				// Verify the response structure
+				require.Equal(tt, tc.expected, res)
+			}
+		})
+	}
+}
