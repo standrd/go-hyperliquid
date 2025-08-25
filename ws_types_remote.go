@@ -1,5 +1,7 @@
 package hyperliquid
 
+import "github.com/sonirico/vago/fp"
+
 //go:generate easyjson -all
 
 type remoteL2BookSubscriptionPayload struct {
@@ -43,4 +45,17 @@ func (p remoteCandlesSubscriptionPayload) Channel() string {
 
 func (p remoteCandlesSubscriptionPayload) Key() string {
 	return keyCandles(p.Coin, p.Interval)
+}
+
+type remoteAllMidsSubscriptionPayload struct {
+	Type string  `json:"type"`
+	Dex  *string `json:"dex,omitempty"`
+}
+
+func (p remoteAllMidsSubscriptionPayload) Channel() string {
+	return p.Type
+}
+
+func (p remoteAllMidsSubscriptionPayload) Key() string {
+	return keyAllMids(fp.OptionFromPtr(p.Dex))
 }
