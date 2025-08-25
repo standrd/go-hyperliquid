@@ -57,28 +57,31 @@ func TestCandleWebSocket(t *testing.T) {
 	defer ws.Close()
 
 	done := make(chan bool)
-	sub := hyperliquid.Subscription{
-		Type:     "candle",
-		Coin:     "BTC",
-		Interval: "1m",
-	}
 
-	_, err := ws.Subscribe(sub, func(msg hyperliquid.WSMessage) {
-		if msg.Channel != "candle" {
-			t.Errorf("Expected channel 'candle', got %s", msg.Channel)
-		}
+	sub, err := ws.Candles(
+		hyperliquid.CandlesSubscriptionParams{
+			Coin:     "BTC",
+			Interval: "1m",
+		},
+		func(candles []hyperliquid.Candle, err error) {
+			if err != nil {
+				t.Errorf("Error in candle callback: %v", err)
+				return
+			}
 
-		// Validate candle data exists
-		if msg.Data == nil {
-			t.Error("Expected non-nil candle data")
-		}
+			for _, candle := range candles {
+				t.Logf("Received candle: %+v", candle)
+			}
 
-		done <- true
-	})
+			done <- true
+		},
+	)
 
 	if err != nil {
 		t.Fatalf("Failed to subscribe: %v", err)
 	}
+
+	defer sub.Close()
 
 	select {
 	case <-done:
