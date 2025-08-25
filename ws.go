@@ -225,18 +225,17 @@ func (w *WebsocketClient) pingPump(ctx context.Context) {
 }
 
 func (w *WebsocketClient) dispatch(msg wsMessage) error {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
-
-	//println("[<] " + msg.Channel)
-	//println("[<] " + string(msg.Data))
-
 	dispatcher, ok := w.msgDispatcherRegistry[msg.Channel]
 	if !ok {
 		return fmt.Errorf("no dispatcher for channel: %s", msg.Channel)
 	}
 
-	return dispatcher.Dispatch(maps.Values(w.subscribers), msg)
+	// Read lock is only required for the subscribers since msgDispatcherRegistry is never modified.
+	w.mu.RLock()
+	subscribers := maps.Values(w.subscribers)
+	w.mu.RUnlock()
+
+	return dispatcher.Dispatch(subscribers, msg)
 }
 
 func (w *WebsocketClient) reconnect() {
