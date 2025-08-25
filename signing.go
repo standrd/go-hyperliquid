@@ -67,7 +67,7 @@ func actionHash(action any, vaultAddress string, nonce int64, expiresAfter *int6
 
 	// Return keccak256 hash
 	hash := crypto.Keccak256(data)
-	fmt.Printf("go action hash: %s\n", hex.EncodeToString(hash))
+	// fmt.Printf("go action hash: %s\n", hex.EncodeToString(hash))
 	return hash
 }
 

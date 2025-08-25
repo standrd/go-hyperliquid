@@ -45,3 +45,9 @@ func (w WsOrders) Key() string {
 	// The dispatching is handled by the subscription system based on the subscription key.
 	return ChannelOrderUpdates
 }
+
+func (w WebData2) Key() string {
+	// WebData2 messages are user-specific but don't contain user info in the message itself.
+	// The dispatching is handled by the subscription system based on the subscription key.
+	return ChannelWebData2
+}
