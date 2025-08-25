@@ -85,3 +85,16 @@ func (p remoteOrderUpdatesSubscriptionPayload) Channel() string {
 func (p remoteOrderUpdatesSubscriptionPayload) Key() string {
 	return keyOrderUpdates(p.User)
 }
+
+type remoteWebData2SubscriptionPayload struct {
+	Type string `json:"type"`
+	User string `json:"user"`
+}
+
+func (p remoteWebData2SubscriptionPayload) Channel() string {
+	return p.Type
+}
+
+func (p remoteWebData2SubscriptionPayload) Key() string {
+	return keyWebData2(p.User)
+}

@@ -2,6 +2,7 @@ package hyperliquid
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -24,7 +25,6 @@ type APIResponse[T any] struct {
 }
 
 func (r *APIResponse[T]) UnmarshalJSON(data []byte) error {
-	fmt.Printf("Unmarshalling API response: %s\n", string(data))
 	// Get parser from pool
 	parser := parserPool.Get().(*fastjson.Parser)
 	defer parserPool.Put(parser)
@@ -62,6 +62,32 @@ func (r *APIResponse[T]) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+type Tuple2[E1 any, E2 any] struct {
+	First  E1
+	Second E2
+}
+
+func (t *Tuple2[E1, E2]) UnmarshalJSON(data []byte) error {
+	var raw []json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if len(raw) != 2 {
+		return fmt.Errorf("expected array of length 2, got %d", len(raw))
+	}
+	if err := json.Unmarshal(raw[0], &t.First); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(raw[1], &t.Second); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (t Tuple2[E1, E2]) MarshalJSON() ([]byte, error) {
+	return json.Marshal([2]any{t.First, t.Second})
 }
 
 type MixedValue json.RawMessage
@@ -145,20 +171,20 @@ func (ma MixedArray) FirstError() error {
 				continue
 			}
 			// any other string? treat as error text
-			return fmt.Errorf(s)
+			return errors.New(s)
 		}
 		if obj, ok := mv.Object(); ok {
 			if v, ok := obj["error"]; ok {
 				if msg, ok := v.(string); ok && msg != "" {
-					return fmt.Errorf(msg)
+					return errors.New(msg)
 				}
 				// stringify unknown error shapes
 				b, _ := json.Marshal(v)
-				return fmt.Errorf(string(b))
+				return errors.New(string(b))
 			}
 		}
 		// Unknown shape -> generic failure
-		return fmt.Errorf("cancel failed")
+		return errors.New("cancel failed")
 	}
 	return nil
 }

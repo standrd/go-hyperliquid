@@ -667,3 +667,342 @@ func TestMixedArray_FirstError(t *testing.T) {
 
 	require.ErrorContains(t, got, want)
 }
+
+func TestTuple2_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		jsonData string
+		want     Tuple2[string, int]
+		wantErr  bool
+	}{
+		{
+			name:     "valid string and int tuple",
+			jsonData: `["hello", 42]`,
+			want:     Tuple2[string, int]{First: "hello", Second: 42},
+			wantErr:  false,
+		},
+		{
+			name:     "valid empty string and zero int",
+			jsonData: `["", 0]`,
+			want:     Tuple2[string, int]{First: "", Second: 0},
+			wantErr:  false,
+		},
+		{
+			name:     "array too short",
+			jsonData: `["hello"]`,
+			want:     Tuple2[string, int]{},
+			wantErr:  true,
+		},
+		{
+			name:     "array too long",
+			jsonData: `["hello", 42, "extra"]`,
+			want:     Tuple2[string, int]{},
+			wantErr:  true,
+		},
+		{
+			name:     "empty array",
+			jsonData: `[]`,
+			want:     Tuple2[string, int]{},
+			wantErr:  true,
+		},
+		{
+			name:     "not an array",
+			jsonData: `{"first": "hello", "second": 42}`,
+			want:     Tuple2[string, int]{},
+			wantErr:  true,
+		},
+		{
+			name:     "invalid json",
+			jsonData: `["hello", 42`,
+			want:     Tuple2[string, int]{},
+			wantErr:  true,
+		},
+		{
+			name:     "type mismatch first element",
+			jsonData: `[42, 42]`,
+			want:     Tuple2[string, int]{},
+			wantErr:  true,
+		},
+		{
+			name:     "type mismatch second element",
+			jsonData: `["hello", "world"]`,
+			want:     Tuple2[string, int]{},
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tuple Tuple2[string, int]
+			err := json.Unmarshal([]byte(tt.jsonData), &tuple)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, tuple)
+		})
+	}
+}
+
+func TestTuple2_UnmarshalJSON_PointerTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		jsonData string
+		wantErr  bool
+	}{
+		{
+			name:     "valid with null values",
+			jsonData: `[null, null]`,
+			wantErr:  false,
+		},
+		{
+			name:     "valid with values",
+			jsonData: `["hello", 42]`,
+			wantErr:  false,
+		},
+		{
+			name:     "array too short",
+			jsonData: `["hello"]`,
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tuple Tuple2[*string, *int]
+			err := json.Unmarshal([]byte(tt.jsonData), &tuple)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+
+			if tt.jsonData == `[null, null]` {
+				assert.Nil(t, tuple.First)
+				assert.Nil(t, tuple.Second)
+			} else if tt.jsonData == `["hello", 42]` {
+				require.NotNil(t, tuple.First)
+				require.NotNil(t, tuple.Second)
+				assert.Equal(t, "hello", *tuple.First)
+				assert.Equal(t, 42, *tuple.Second)
+			}
+		})
+	}
+}
+
+func TestTuple2_MarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		tuple   any // Using any to test different tuple types
+		want    string
+		wantErr bool
+	}{
+		{
+			name:  "string and int tuple",
+			tuple: Tuple2[string, int]{First: "hello", Second: 42},
+			want:  `["hello",42]`,
+		},
+		{
+			name:  "float and bool tuple",
+			tuple: Tuple2[float64, bool]{First: 3.14, Second: true},
+			want:  `[3.14,true]`,
+		},
+		{
+			name:  "empty string and zero values",
+			tuple: Tuple2[string, int]{First: "", Second: 0},
+			want:  `["",0]`,
+		},
+		{
+			name:  "pointer types with nil",
+			tuple: Tuple2[*string, *int]{First: nil, Second: nil},
+			want:  `[null,null]`,
+		},
+		{
+			name: "pointer types with values",
+			tuple: func() Tuple2[*string, *int] {
+				s := "test"
+				i := 123
+				return Tuple2[*string, *int]{First: &s, Second: &i}
+			}(),
+			want: `["test",123]`,
+		},
+		{
+			name: "object and array tuple",
+			tuple: Tuple2[map[string]any, []int]{
+				First:  map[string]any{"key": "value"},
+				Second: []int{1, 2, 3},
+			},
+			want: `[{"key":"value"},[1,2,3]]`,
+		},
+		{
+			name: "nested tuples",
+			tuple: Tuple2[Tuple2[string, int], Tuple2[bool, float64]]{
+				First:  Tuple2[string, int]{First: "nested", Second: 42},
+				Second: Tuple2[bool, float64]{First: true, Second: 3.14},
+			},
+			want: `[["nested",42],[true,3.14]]`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.tuple)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			assert.JSONEq(t, tt.want, string(data))
+		})
+	}
+}
+
+func TestTuple2_RoundTrip(t *testing.T) {
+	tests := []struct {
+		name     string
+		original any
+	}{
+		{
+			name:     "string and int",
+			original: Tuple2[string, int]{First: "test", Second: 42},
+		},
+		{
+			name:     "float and bool",
+			original: Tuple2[float64, bool]{First: 3.14159, Second: false},
+		},
+		{
+			name: "complex objects",
+			original: Tuple2[map[string]any, []string]{
+				First: map[string]any{
+					"key": "value",
+					"num": float64(123),
+				}, // Use float64 to match JSON unmarshaling behavior
+				Second: []string{"a", "b", "c"},
+			},
+		},
+		{
+			name: "pointer types",
+			original: func() Tuple2[*string, *int] {
+				s := "pointer_test"
+				i := 999
+				return Tuple2[*string, *int]{First: &s, Second: &i}
+			}(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Marshal original
+			data, err := json.Marshal(tt.original)
+			require.NoError(t, err)
+
+			// Unmarshal back
+			switch v := tt.original.(type) {
+			case Tuple2[string, int]:
+				var result Tuple2[string, int]
+				err = json.Unmarshal(data, &result)
+				require.NoError(t, err)
+				assert.Equal(t, v, result)
+			case Tuple2[float64, bool]:
+				var result Tuple2[float64, bool]
+				err = json.Unmarshal(data, &result)
+				require.NoError(t, err)
+				assert.Equal(t, v, result)
+			case Tuple2[map[string]any, []string]:
+				var result Tuple2[map[string]any, []string]
+				err = json.Unmarshal(data, &result)
+				require.NoError(t, err)
+				assert.Equal(t, v, result)
+			case Tuple2[*string, *int]:
+				var result Tuple2[*string, *int]
+				err = json.Unmarshal(data, &result)
+				require.NoError(t, err)
+				if v.First == nil {
+					assert.Nil(t, result.First)
+				} else {
+					require.NotNil(t, result.First)
+					assert.Equal(t, *v.First, *result.First)
+				}
+				if v.Second == nil {
+					assert.Nil(t, result.Second)
+				} else {
+					require.NotNil(t, result.Second)
+					assert.Equal(t, *v.Second, *result.Second)
+				}
+			}
+		})
+	}
+}
+
+func TestTuple2_EdgeCases(t *testing.T) {
+	t.Run("large numbers", func(t *testing.T) {
+		original := Tuple2[int64, uint64]{First: -9223372036854775808, Second: 18446744073709551615}
+
+		data, err := json.Marshal(original)
+		require.NoError(t, err)
+
+		var result Tuple2[int64, uint64]
+		err = json.Unmarshal(data, &result)
+		require.NoError(t, err)
+		assert.Equal(t, original, result)
+	})
+
+	t.Run("unicode strings", func(t *testing.T) {
+		original := Tuple2[string, string]{First: "Hello 世界", Second: "🚀💰📈"}
+
+		data, err := json.Marshal(original)
+		require.NoError(t, err)
+
+		var result Tuple2[string, string]
+		err = json.Unmarshal(data, &result)
+		require.NoError(t, err)
+		assert.Equal(t, original, result)
+	})
+
+	t.Run("empty slice and map", func(t *testing.T) {
+		original := Tuple2[[]int, map[string]string]{
+			First:  []int{},
+			Second: map[string]string{},
+		}
+
+		data, err := json.Marshal(original)
+		require.NoError(t, err)
+
+		var result Tuple2[[]int, map[string]string]
+		err = json.Unmarshal(data, &result)
+		require.NoError(t, err)
+		assert.Equal(t, original, result)
+	})
+
+	t.Run("deeply nested structures", func(t *testing.T) {
+		type NestedStruct struct {
+			Level1 map[string][]map[string]int `json:"level1"`
+		}
+
+		original := Tuple2[NestedStruct, []NestedStruct]{
+			First: NestedStruct{
+				Level1: map[string][]map[string]int{
+					"key": {{"nested": 42}, {"deep": 123}},
+				},
+			},
+			Second: []NestedStruct{
+				{Level1: map[string][]map[string]int{"test": {{"value": 999}}}},
+			},
+		}
+
+		data, err := json.Marshal(original)
+		require.NoError(t, err)
+
+		var result Tuple2[NestedStruct, []NestedStruct]
+		err = json.Unmarshal(data, &result)
+		require.NoError(t, err)
+		assert.Equal(t, original, result)
+	})
+}

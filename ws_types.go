@@ -7,12 +7,14 @@ import (
 //go:generate easyjson -all
 
 const (
+	ChannelPong         string = "pong"
 	ChannelTrades       string = "trades"
 	ChannelL2Book       string = "l2Book"
 	ChannelCandle       string = "candle"
 	ChannelAllMids      string = "allMids"
 	ChannelNotification string = "notification"
 	ChannelOrderUpdates string = "orderUpdates"
+	ChannelWebData2     string = "webData2"
 	ChannelSubResponse  string = "subscriptionResponse"
 )
 
@@ -44,6 +46,64 @@ type (
 
 	Notification struct {
 		Notification string `json:"notification"`
+	}
+
+	//easyjson:skip
+	WebData2 struct {
+		ClearinghouseState     *ClearinghouseState `json:"clearinghouseState,omitempty"`
+		LeadingVaults          []any               `json:"leadingVaults,omitempty"`
+		TotalVaultEquity       string              `json:"totalVaultEquity,omitempty"`
+		OpenOrders             []WsBasicOrder      `json:"openOrders,omitempty"`
+		AgentAddress           *string             `json:"agentAddress,omitempty"`
+		AgentValidUntil        *int64              `json:"agentValidUntil,omitempty"`
+		CumLedger              string              `json:"cumLedger,omitempty"`
+		Meta                   *WebData2Meta       `json:"meta,omitempty"`
+		AssetCtxs              []AssetCtx          `json:"assetCtxs,omitempty"`
+		ServerTime             int64               `json:"serverTime,omitempty"`
+		IsVault                bool                `json:"isVault,omitempty"`
+		User                   string              `json:"user,omitempty"`
+		TwapStates             []any               `json:"twapStates,omitempty"`
+		SpotState              *SpotState          `json:"spotState,omitempty"`
+		SpotAssetCtxs          []SpotAssetCtx      `json:"spotAssetCtxs,omitempty"`
+		PerpsAtOpenInterestCap []string            `json:"perpsAtOpenInterestCap,omitempty"`
+	}
+
+	//easyjson:skip
+	WebData2Meta struct {
+		Universe     []WebData2AssetInfo                `json:"universe,omitempty"`
+		MarginTables []Tuple2[int, WebData2MarginTable] `json:"marginTables,omitempty"`
+	}
+
+	WebData2AssetInfo struct {
+		SzDecimals    int    `json:"szDecimals,omitempty"`
+		Name          string `json:"name,omitempty"`
+		MaxLeverage   int    `json:"maxLeverage,omitempty"`
+		MarginTableID int    `json:"marginTableId,omitempty"`
+		IsDelisted    bool   `json:"isDelisted,omitempty"`
+		OnlyIsolated  bool   `json:"onlyIsolated,omitempty"`
+	}
+
+	WebData2MarginTable struct {
+		Description string               `json:"description,omitempty"`
+		MarginTiers []WebData2MarginTier `json:"marginTiers,omitempty"`
+	}
+
+	WebData2MarginTier struct {
+		LowerBound  string `json:"lowerBound,omitempty"`
+		MaxLeverage int    `json:"maxLeverage,omitempty"`
+	}
+
+	ClearinghouseState struct {
+		MarginSummary              *MarginSummary  `json:"marginSummary,omitempty"`
+		CrossMarginSummary         *MarginSummary  `json:"crossMarginSummary,omitempty"`
+		CrossMaintenanceMarginUsed string          `json:"crossMaintenanceMarginUsed,omitempty"`
+		Withdrawable               string          `json:"withdrawable,omitempty"`
+		AssetPositions             []AssetPosition `json:"assetPositions,omitempty"`
+		Time                       int64           `json:"time,omitempty"`
+	}
+
+	SpotState struct {
+		Balances []SpotBalance `json:"balances,omitempty"`
 	}
 
 	WsOrder struct {
