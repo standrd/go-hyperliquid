@@ -32,3 +32,9 @@ func (c L2Book) Key() string {
 func (a AllMids) Key() string {
 	return keyAllMids(fp.None[string]())
 }
+
+func (n Notification) Key() string {
+	// Notification messages are user-specific but don't contain user info in the message itself.
+	// The dispatching is handled by the subscription system based on the subscription key.
+	return ChannelNotification
+}

@@ -59,3 +59,16 @@ func (p remoteAllMidsSubscriptionPayload) Channel() string {
 func (p remoteAllMidsSubscriptionPayload) Key() string {
 	return keyAllMids(fp.OptionFromPtr(p.Dex))
 }
+
+type remoteNotificationSubscriptionPayload struct {
+	Type string `json:"type"`
+	User string `json:"user"`
+}
+
+func (p remoteNotificationSubscriptionPayload) Channel() string {
+	return p.Type
+}
+
+func (p remoteNotificationSubscriptionPayload) Key() string {
+	return keyNotification(p.User)
+}
