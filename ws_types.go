@@ -7,11 +7,12 @@ import (
 //go:generate easyjson -all
 
 const (
-	ChannelTrades      string = "trades"
-	ChannelL2Book      string = "l2Book"
-	ChannelCandle      string = "candle"
-	ChannelAllMids     string = "allMids"
-	ChannelSubResponse string = "subscriptionResponse"
+	ChannelTrades       string = "trades"
+	ChannelL2Book       string = "l2Book"
+	ChannelCandle       string = "candle"
+	ChannelAllMids      string = "allMids"
+	ChannelNotification string = "notification"
+	ChannelSubResponse  string = "subscriptionResponse"
 )
 
 type wsMessage struct {
@@ -38,6 +39,10 @@ type (
 
 	AllMids struct {
 		Mids map[string]string `json:"mids"`
+	}
+
+	Notification struct {
+		Notification string `json:"notification"`
 	}
 
 	L2Book struct {

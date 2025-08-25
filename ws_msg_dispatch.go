@@ -42,3 +42,24 @@ func NewNoopDispatcher() msgDispatcher {
 		return nil
 	})
 }
+
+func NewUserSpecificDispatcher[T any](channel string) msgDispatcher {
+	return msgDispatcherFunc[T](func(subs []*uniqSubscriber, msg wsMessage) error {
+		if msg.Channel != channel {
+			return nil
+		}
+
+		var x T
+		if err := json.Unmarshal(msg.Data, &x); err != nil {
+			return fmt.Errorf("failed to unmarshal message: %v", err)
+		}
+
+		// For user-specific channels, dispatch to all subscribers since
+		// the message doesn't contain user identification info
+		for _, subscriber := range subs {
+			subscriber.dispatch(x)
+		}
+
+		return nil
+	})
+}

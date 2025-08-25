@@ -57,11 +57,12 @@ func NewWebsocketClient(baseURL string) *WebsocketClient {
 		reconnectWait: time.Second,
 		subscribers:   make(map[string]*uniqSubscriber),
 		msgDispatcherRegistry: map[string]msgDispatcher{
-			ChannelTrades:      NewMsgDispatcher[Trades](ChannelTrades),
-			ChannelL2Book:      NewMsgDispatcher[L2Book](ChannelL2Book),
-			ChannelCandle:      NewMsgDispatcher[Candles](ChannelCandle),
-			ChannelAllMids:     NewMsgDispatcher[AllMids](ChannelAllMids),
-			ChannelSubResponse: NewNoopDispatcher(),
+			ChannelTrades:       NewMsgDispatcher[Trades](ChannelTrades),
+			ChannelL2Book:       NewMsgDispatcher[L2Book](ChannelL2Book),
+			ChannelCandle:       NewMsgDispatcher[Candles](ChannelCandle),
+			ChannelAllMids:      NewMsgDispatcher[AllMids](ChannelAllMids),
+			ChannelNotification: NewUserSpecificDispatcher[Notification](ChannelNotification),
+			ChannelSubResponse:  NewNoopDispatcher(),
 			//"userEvents":  NewMsgDispatcher[[]UserEvent]("userEvents"),
 		},
 	}
