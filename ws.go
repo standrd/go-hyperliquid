@@ -18,9 +18,13 @@ import (
 const (
 	// pingInterval is the interval for sending ping messages to keep WebSocket alive
 	pingInterval = 50 * time.Second
-	// gracefulCloseTimeout is the timeout for graceful WebSocket close
-	gracefulCloseTimeout = 10 * time.Second
 )
+
+type Subscription struct {
+	ID      string
+	Payload any
+	Close   func()
+}
 
 type WebsocketClient struct {
 	url                   string
@@ -56,8 +60,8 @@ func NewWebsocketClient(baseURL string) *WebsocketClient {
 			ChannelTrades:      NewMsgDispatcher[Trades](ChannelTrades),
 			ChannelL2Book:      NewMsgDispatcher[L2Book](ChannelL2Book),
 			ChannelCandle:      NewMsgDispatcher[Candles](ChannelCandle),
+			ChannelAllMids:     NewMsgDispatcher[AllMids](ChannelAllMids),
 			ChannelSubResponse: NewNoopDispatcher(),
-			//"allMids":     NewMsgDispatcher[[]MidPrice]("allMids"),
 			//"userEvents":  NewMsgDispatcher[[]UserEvent]("userEvents"),
 		},
 	}
@@ -186,7 +190,6 @@ func (w *WebsocketClient) readPump(ctx context.Context) {
 			if err != nil {
 				if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 					log.Printf("websocket read error: %v", err)
-					w.reconnect()
 				}
 				return
 			}
@@ -217,7 +220,7 @@ func (w *WebsocketClient) pingPump(ctx context.Context) {
 		case <-ticker.C:
 			if err := w.sendPing(); err != nil {
 				log.Printf("ping error: %v", err)
-				w.reconnect()
+				w.reconnect(ctx)
 				return
 			}
 		}
@@ -225,6 +228,9 @@ func (w *WebsocketClient) pingPump(ctx context.Context) {
 }
 
 func (w *WebsocketClient) dispatch(msg wsMessage) error {
+	//println("[<] " + msg.Channel)
+	//println("[<] " + string(msg.Data))
+
 	dispatcher, ok := w.msgDispatcherRegistry[msg.Channel]
 	if !ok {
 		return fmt.Errorf("no dispatcher for channel: %s", msg.Channel)
@@ -238,16 +244,15 @@ func (w *WebsocketClient) dispatch(msg wsMessage) error {
 	return dispatcher.Dispatch(subscribers, msg)
 }
 
-func (w *WebsocketClient) reconnect() {
+func (w *WebsocketClient) reconnect(ctx context.Context) {
 	for {
 		select {
 		case <-w.done:
 			return
+		case <-ctx.Done():
+			return
 		default:
-			ctx, cancel := context.WithTimeout(context.Background(), gracefulCloseTimeout)
-			err := w.Connect(ctx)
-			cancel()
-			if err == nil {
+			if err := w.Connect(ctx); err == nil {
 				return
 			}
 			time.Sleep(w.reconnectWait)
@@ -269,21 +274,21 @@ func (w *WebsocketClient) resubscribeAll() error {
 }
 
 func (w *WebsocketClient) sendSubscribe(payload subscriptable) error {
-	return w.writeJSON(WsCommand{
+	return w.writeJSON(wsCommand{
 		Method:       "subscribe",
 		Subscription: payload,
 	})
 }
 
 func (w *WebsocketClient) sendUnsubscribe(payload subscriptable) error {
-	return w.writeJSON(WsCommand{
+	return w.writeJSON(wsCommand{
 		Method:       "unsubscribe",
 		Subscription: payload,
 	})
 }
 
 func (w *WebsocketClient) sendPing() error {
-	return w.writeJSON(WsCommand{Method: "ping"})
+	return w.writeJSON(wsCommand{Method: "ping"})
 }
 
 func (w *WebsocketClient) writeJSON(v any) error {

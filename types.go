@@ -164,18 +164,6 @@ type PerpDexSchemaInput struct {
 	OracleUpdater   *string `json:"oracleUpdater"`
 }
 
-type L2Book struct {
-	Coin   string    `json:"coin"`
-	Levels [][]Level `json:"levels"`
-	Time   int64     `json:"time"`
-}
-
-type Level struct {
-	N  int     `json:"n"`
-	Px float64 `json:"px,string"`
-	Sz float64 `json:"sz,string"`
-}
-
 type AssetPosition struct {
 	Position Position `json:"position"`
 	Type     string   `json:"type"`
@@ -372,19 +360,6 @@ type UserFundingHistory struct {
 	EndTime   int64  `json:"endTime"`
 }
 
-type Candle struct {
-	Timestamp int64  `json:"T"`
-	Close     string `json:"c"`
-	High      string `json:"h"`
-	Interval  string `json:"i"`
-	Low       string `json:"l"`
-	Number    int    `json:"n"`
-	Open      string `json:"o"`
-	Symbol    string `json:"s"`
-	Time      int64  `json:"t"`
-	Volume    string `json:"v"`
-}
-
 type UserFees struct {
 	ActiveReferralDiscount string       `json:"activeReferralDiscount"`
 	DailyUserVolume        []UserVolume `json:"dailyUserVlm"`
@@ -468,17 +443,6 @@ type SubAccount struct {
 type MultiSigSigner struct {
 	User      string `json:"user"`
 	Threshold int    `json:"threshold"`
-}
-
-type Trade struct {
-	Coin  string   `json:"coin"`
-	Side  string   `json:"side"`
-	Px    string   `json:"px"`
-	Sz    string   `json:"sz"`
-	Time  int64    `json:"time"`
-	Hash  string   `json:"hash"`
-	Tid   int64    `json:"tid"`
-	Users []string `json:"users"`
 }
 
 type BulkOrderResponse struct {
