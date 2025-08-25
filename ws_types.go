@@ -12,6 +12,7 @@ const (
 	ChannelCandle       string = "candle"
 	ChannelAllMids      string = "allMids"
 	ChannelNotification string = "notification"
+	ChannelOrderUpdates string = "orderUpdates"
 	ChannelSubResponse  string = "subscriptionResponse"
 )
 
@@ -43,6 +44,23 @@ type (
 
 	Notification struct {
 		Notification string `json:"notification"`
+	}
+
+	WsOrder struct {
+		Order           WsBasicOrder `json:"order"`
+		Status          string       `json:"status"`
+		StatusTimestamp int64        `json:"statusTimestamp"`
+	}
+
+	WsBasicOrder struct {
+		Coin      string  `json:"coin"`
+		Side      string  `json:"side"`
+		LimitPx   string  `json:"limitPx"`
+		Sz        string  `json:"sz"`
+		Oid       int64   `json:"oid"`
+		Timestamp int64   `json:"timestamp"`
+		OrigSz    string  `json:"origSz"`
+		Cloid     *string `json:"cloid"`
 	}
 
 	L2Book struct {

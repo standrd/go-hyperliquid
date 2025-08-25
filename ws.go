@@ -62,6 +62,7 @@ func NewWebsocketClient(baseURL string) *WebsocketClient {
 			ChannelCandle:       NewMsgDispatcher[Candles](ChannelCandle),
 			ChannelAllMids:      NewMsgDispatcher[AllMids](ChannelAllMids),
 			ChannelNotification: NewUserSpecificDispatcher[Notification](ChannelNotification),
+			ChannelOrderUpdates: NewUserSpecificDispatcher[WsOrders](ChannelOrderUpdates),
 			ChannelSubResponse:  NewNoopDispatcher(),
 			//"userEvents":  NewMsgDispatcher[[]UserEvent]("userEvents"),
 		},

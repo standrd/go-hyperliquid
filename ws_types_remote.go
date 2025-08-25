@@ -72,3 +72,16 @@ func (p remoteNotificationSubscriptionPayload) Channel() string {
 func (p remoteNotificationSubscriptionPayload) Key() string {
 	return keyNotification(p.User)
 }
+
+type remoteOrderUpdatesSubscriptionPayload struct {
+	Type string `json:"type"`
+	User string `json:"user"`
+}
+
+func (p remoteOrderUpdatesSubscriptionPayload) Channel() string {
+	return p.Type
+}
+
+func (p remoteOrderUpdatesSubscriptionPayload) Key() string {
+	return keyOrderUpdates(p.User)
+}
