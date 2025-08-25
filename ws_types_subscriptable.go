@@ -7,8 +7,9 @@ type subscriptable interface {
 }
 
 type (
-	Trades  []Trade
-	Candles []Candle
+	Trades   []Trade
+	Candles  []Candle
+	WsOrders []WsOrder
 )
 
 func (t Trades) Key() string {
@@ -37,4 +38,10 @@ func (n Notification) Key() string {
 	// Notification messages are user-specific but don't contain user info in the message itself.
 	// The dispatching is handled by the subscription system based on the subscription key.
 	return ChannelNotification
+}
+
+func (w WsOrders) Key() string {
+	// WsOrder messages are user-specific but don't contain user info in the message itself.
+	// The dispatching is handled by the subscription system based on the subscription key.
+	return ChannelOrderUpdates
 }
