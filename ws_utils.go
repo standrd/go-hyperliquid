@@ -1,6 +1,7 @@
 package hyperliquid
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/sonirico/vago/fp"
@@ -43,6 +44,12 @@ func keyOrderUpdates(_ string) string {
 	// Order updates are user-specific but don't contain user info in the message itself.
 	// The dispatching is handled by the subscription system based on the subscription key.
 	return key(ChannelOrderUpdates)
+}
+
+func keyOrderFills(user string, aggregateByTime bool) string {
+	// Order fills are user-specific but don't contain user info in the message itself.
+	// The dispatching is handled by the subscription system based on the subscription key.
+	return key(ChannelOrderFills, user, strconv.FormatBool(aggregateByTime))
 }
 
 func keyWebData2(_ string) string {
