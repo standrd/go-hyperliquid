@@ -271,12 +271,6 @@ func easyjson6658546bDecodeGithubComSoniricoGoHyperliquid3(in *jlexer.Lexer, out
 			} else {
 				out.User = string(in.String())
 			}
-		case "aggregateByTime":
-			if in.IsNull() {
-				in.Skip()
-			} else {
-				out.AggregateByTime = bool(in.Bool())
-			}
 		default:
 			in.SkipRecursive()
 		}
@@ -300,11 +294,6 @@ func easyjson6658546bEncodeGithubComSoniricoGoHyperliquid3(out *jwriter.Writer, 
 		const prefix string = ",\"user\":"
 		out.RawString(prefix)
 		out.String(string(in.User))
-	}
-	{
-		const prefix string = ",\"aggregateByTime\":"
-		out.RawString(prefix)
-		out.Bool(bool(in.AggregateByTime))
 	}
 	out.RawByte('}')
 }
