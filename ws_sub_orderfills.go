@@ -3,8 +3,7 @@ package hyperliquid
 import "fmt"
 
 type OrderFillsSubscriptionParams struct {
-	User            string
-	AggregateByTime bool
+	User string
 }
 
 func (w *WebsocketClient) OrderFills(
@@ -12,9 +11,8 @@ func (w *WebsocketClient) OrderFills(
 	callback func([]WsOrderFill, error),
 ) (*Subscription, error) {
 	payload := remoteOrderFillsSubscriptionPayload{
-		Type:            ChannelOrderFills,
-		User:            params.User,
-		AggregateByTime: params.AggregateByTime,
+		Type: ChannelOrderFills,
+		User: params.User,
 	}
 
 	return w.subscribe(payload, func(msg any) {

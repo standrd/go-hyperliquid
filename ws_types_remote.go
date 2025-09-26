@@ -87,9 +87,8 @@ func (p remoteOrderUpdatesSubscriptionPayload) Key() string {
 }
 
 type remoteOrderFillsSubscriptionPayload struct {
-	Type            string `json:"type"`
-	User            string `json:"user"`
-	AggregateByTime bool   `json:"aggregateByTime"`
+	Type string `json:"type"`
+	User string `json:"user"`
 }
 
 func (p remoteOrderFillsSubscriptionPayload) Channel() string {
@@ -97,7 +96,7 @@ func (p remoteOrderFillsSubscriptionPayload) Channel() string {
 }
 
 func (p remoteOrderFillsSubscriptionPayload) Key() string {
-	return keyOrderFills(p.User, p.AggregateByTime)
+	return keyOrderFills(p.User)
 }
 
 type remoteWebData2SubscriptionPayload struct {
